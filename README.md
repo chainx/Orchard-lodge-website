@@ -3,4 +3,5 @@ Website to allow the Orchard lodge management to easily produce invoices for res
 The login details are:
 
 Username: mike
+
 Password: helloGitHub
