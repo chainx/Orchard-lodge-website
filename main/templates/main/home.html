@@ -1,0 +1,29 @@
+{% extends 'main/base.html' %}
+
+{% block title %}
+Home page
+{% endblock %}
+
+{% block content %}
+    {% if not new_data and not confirmed_data %}
+        To download the latest remittance advice from the Sefton website and begin the process of writing new invoices, please click the button below. <br/><br/>
+        <form method="post">
+            {% csrf_token %}
+            <input type="submit" name="Sefton" value="Obtain latest invoices from Sefton" class="btn btn-primary">
+        </form>
+        <br/>
+    {% endif %}
+    {% if new_data %}
+        <h3>We already have the latest remittance advice from Sefton.</h3> <br/>
+    {% endif %}
+    {% if confirmed_data %}
+        <h3>Invoices have been written and the database has been updated.</h3> <br/>
+    {% endif %}
+
+    <p>To match payments and invoices, please click on <b>Residents</b> on the left-hand naivgation bar. 
+    This will redirect you to a page listing all of the residents, both current and former. 
+    From there, you can click on the resident whose payments and invoices you want to match.</p>
+    <p>To upload an invoice that has been manually written, please click on <b>Upload</b> on the left-hand navigation bar.</p>
+    <p>If you wish to download any invoices, please click on <b>Download</b> on the left-hand navigation bar.</p>
+    <p>To match cash and cheque payments, please click on <b>Cash and Cheques</b> on the left-hand navigation bar</p>
+{% endblock %}

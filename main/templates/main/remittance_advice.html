@@ -1,0 +1,42 @@
+{% extends 'main/base.html' %}
+
+{% block title %}
+Remittance advice page
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="column">
+        <div class="list-group">
+            {% for kwargs in data %}
+                <li><h3>{{kwargs.Resident}}</h3></li>
+                <table class="table table-bordered table-striped table-sm">
+                    <thread>
+                        <tr>
+                            <th>Amount</th>
+                            <th>Date range</th>
+                            <th>Adjustment label</th>
+                        </tr>
+                    </thread>
+                    <tbody>
+                        {% for index, row in kwargs.sub_items.iterrows %}
+                            <tr>
+                                <td>{{row.Amount}}</td>
+                                <td>{{row.PaymentItemDates}}</td>
+                                <td>{{row.AdjustmentLabel}}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="column">
+        If you are happy with this, please click the confirm button below to write invoices and update the database. <br/><br/>
+        <form method="post">
+            {% csrf_token %}
+            <input type="submit" name="Sefton" value="Confirm latest invoices from Sefton" class="btn btn-primary">
+        </form>
+    </div>
+</div>
+{% endblock %}
