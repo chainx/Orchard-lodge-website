@@ -1,0 +1,93 @@
+{% extends 'main/base.html' %}
+
+{% block title %}
+{{res.name}}'s page
+{% endblock %}
+
+
+
+{% block content %}
+    <p>Resident information can be edited here. Please double check any edits before clicking the submit button.</p>
+
+    <form method="post" class="form-group">
+        {% csrf_token %}
+        <div class="container">
+            <div class="row">
+                <div class="col-sm-1.5"><b>{{form.title.label_tag}}</b>  {{form.title}}</div>
+                <div class="col-sm-3"><b>{{form.first.label_tag}}</b>  {{form.first}}</div>
+                <div class="col-sm-3"><b>{{form.last.label_tag}}</b>  {{form.last}}</div>
+            </div>
+            <div class="row">
+                <div class="col-sm-2"><b>{{form.current.label_tag}}</b>  {{form.current}}</div>
+                <div class="col-sm-2"><b>{{form.private.label_tag}}</b>  {{form.private}}</div>
+                {% if res.private %}
+                    <div class="col-sm-3"><b>{{form.private_rate.label_tag}}</b>  {{form.private_rate}}</div>
+                {% endif %}
+            </div>
+            <div class="row">
+                <div class="col-sm"><b>{{form.filters.label_tag}}</b>  {{form.filters}}</div>
+            </div>
+        </div>
+        <br/>
+        <button type="submit" class="btn btn-primary">Submit</button>
+    </form>
+    <br/>
+
+<!-- ======================================================================================================================================================================================== -->
+
+    <h3>Unmatched invoices and payments for {{res.name}}</h3>
+    <div class="row">
+        <div class="column">
+            <form method="post" class="form-group">
+                {% csrf_token %}
+                <table class="table table-bordered table-striped table-sm">
+                    <thread>
+                        <tr>
+                            <th>Invoice number</th>
+                            <th>Date</th>
+                            <th>Total</th>
+                            <th>Match</th>
+                        </tr>
+                    </thread>
+                    <tbody>
+                        {% for invoice in invoices %}
+                            <tr>
+                                <td>{{invoice.invoice_number}}</td>
+                                <td>{{invoice.date}}</td>
+                                <td>{{invoice.str_total}}</td>
+                                <td>
+                                    <input id="Payment ID" type="text" name="Payment ID" style="width: 50px">
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <button type="submit" class="btn btn-primary">Submit</button>
+            </form>
+        </div>
+        <div class="column">
+            <table style="float: right" class="table table-striped table-bordered table-sm">
+                <thread>
+                    <tr>
+                        <th>ID</th>
+                        <th>Date</th>
+                        <th>Description</th>
+                        <th>Amount</th>
+                        <th>Type</th>
+                    </tr>
+                </thread>
+                <tbody>
+                    {% for payment in payments %}
+                        <tr>
+                            <td>{{payment.id}}</td>
+                            <td>{{payment.date}}</td>
+                            <td>{{payment.description}}</td>
+                            <td>{{payment.str_amount}}</td>
+                            <td>{{payment.type}}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}

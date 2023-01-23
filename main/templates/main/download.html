@@ -1,0 +1,20 @@
+{% extends 'main/base.html' %}
+
+{% block title %}
+Downloads page
+{% endblock %}
+
+{% block content %}
+    {% for year, files in years.items %}
+        <h3>{{year}}</h3><br/>
+        {% for filename, file in files.items %}
+            <ul>
+                <form method="post">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-primary" name="File" value="{{file}}">{{filename}}</button>
+                </form>
+            </ul>
+        {% endfor %}
+        <br/>
+    {% endfor %}
+{% endblock %}

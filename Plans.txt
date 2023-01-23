@@ -1,0 +1,23 @@
+Home page:
+    -Give list of outstanding invoices and unmatched payments, redirect to resident's page
+    -List matched invoices and payments where the checksum fails
+    -Download link for most recent batch of invoices
+
+Residents page:
+    -List of current residents with hidden list of former residents, linking to their page
+    -Seperate private residents from normal residents
+
+Specific resident's page:
+    -Display global attributes and give the ability to modify them
+    -Display lists of invoices with matching payments
+    -Functionality to mark as obsolete, modify, view and download each invoice
+    -List unmatched payments associated with the resident
+
+
+Upload page:
+    -Functionality to upload invoice and extract info from invoice + checksum
+    -Functionality to add cash / cheque payments (even those that don't exist yet)
+
+
+-Use scraped data to find which invoices have been manually edited
+-Deal with double-barreled second names

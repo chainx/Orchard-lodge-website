@@ -1,0 +1,106 @@
+django-admin startproject [project name]   #Start project
+python manage.py startapp [app name]       #Create an app
+python manage.py createsuperuser           #To create admin account
+python manage.py shell                     #Open site in shell [use to add to database]
+python manage.py dbshell                   #Open SQL command line
+
+python manage.py runserver [Port number]   #Run server, default port is 8080
+
+
+#==========================================================================================
+
+
+Go to settings.py in main folder and add the app to INSTALLED_APPS, so for instance if the app is named 'testapp' then add the following string in the installed_apps list:
+
+'[App_name].apps.MainConfig'
+
+and then in the same folder, modify urls.py by adding include to the imports from django.urls, and add path("", include("[App_name].urls")) in the urlpatterns list
+
+python manage.py makemigrations [App_name]  #Use when creating models
+python manage.py migrate                    #Apply change
+
+
+#==========================================================================================
+
+
+To create a webpage we first add "from django.http import HttpResponse" to views.py, and then for each webpage we add the following:
+
+def [page_name](response):
+    return HttpResponse([html code])
+
+and then create a urls.py file in the app directory with the following code:
+
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path("[path_to_page]", views.[page_name], name="[page_name_seen_by_user]")
+]
+
+For dynamic urls, add the variable name to the view function and then add the following in urls.py:
+
+    path("<[type]:[variable_name]>", views.  ...) 
+
+
+#==========================================================================================
+
+
+Register models (for data storage) for use in the admin page in admin.py
+    
+from .models import [model_name]
+admin.site.register([model_name])
+
+
+
+
+To define a model we use the following code:
+
+class [model_name](models.Model):
+    #Insert code here
+
+We can define a subclass [subclass_name] and add the following line of code to the subclass definition
+
+    [arbitrary_name] = models.ForeignKey([Parent_class_name], on_delete=models.CASCADE)
+
+and then every instance of the parent class will have objects from the subclass, which can be obtained using
+
+[object_name].[subclass_name]_set.all()
+
+[model_name].objects
+
+    .all()      -- Returns all instances of the model class in the database
+    .get(id=n)  -- Returns instance with id n
+    .filter(name__startswith="Mike")   -- A typical query
+
+[object_name] = [model_name]([attribute]=[value])
+[object_name].save()
+[object_name].delete()
+
+[object_name].[Many_to_many_field].all()    -- get all objects linked by many to many
+[linked_object].[object_class]_set.all()    -- get all objects that link to the linked object
+[linked_object].[object_class]_set.add()    -- Works for many to one relationships too
+[object_name].[Many_to_many_field].add()    -- Only works for many to many
+
+
+#==========================================================================================
+
+SQL commands:
+    -PRAGMA table_info([table_name]);   #To get column names and info
+    -SELECT * FROM sqlite_sequence;     #To get all of the tables in the database
+    -UPDATE sqlite_sequence SET seq = 0 WHERE name="[table_name]";   #Set id back to 0
+
+#==========================================================================================
+
+
+To use html templates create a templates folder in the app directory, and then create a sub-folder within that with the same name as the app directory.
+
+For inheritance add {% extends 'main/[base_filename].html' %} at the top and then use {% block [name] %} {% endblock %} in the base html file and do the same in the html file that is inheriting but add code between the blocks.
+
+To use a html file, use the following code: 
+
+def [view_name](response,[variable]):
+    return render(response, "[app_name]/[html_filename].html", {[name_in_html]:[variable]}) 
+
+the dictionary in render is used to pass variables to the html file.
+
+
