@@ -13,7 +13,7 @@ from main.models import resident, invoice
 
 def write_inovice(folder,date,Resident,sub_items,total,invoice_number):
 
-    document = Document('Invoices/INVOICE TEMPLATE.DOCX')
+    document = Document('Invoices/INVOICE TEMPLATE.docx')
 
     for paragraph in document.paragraphs:
         if paragraph.text.count("NAME OF RECIPIENT")==1: paragraph.text=paragraph.text.replace("NAME OF RECIPIENT",Resident)
@@ -52,7 +52,9 @@ def db(kwargs): #Extract arguments for updating database from arguments for writ
 
 def handle_data(filename): #Obtains data pertinent to writing invoices and updating the database
     date, year = datetime.now().strftime("%d %B %Y"), datetime.now().strftime("%Y") 
-    folder = 'Invoices/'+year+'/'+str(len(os.listdir('invoices/'+year))//2+1)+'. '+ date + '/'
+    if year not in os.listdir('Invoices/'):
+        os.makedirs('Invoices/'+year)
+    folder = 'Invoices/'+year+'/'+str(len(os.listdir('Invoices/'+year))//2+1)+'. '+ date + '/'
     with open('Invoices/Invoice number.txt', 'r') as file:
         invoice_number = file.readline() 
 
@@ -87,14 +89,14 @@ def handle_data(filename): #Obtains data pertinent to writing invoices and updat
         kwargs_list.append(kwargs)
         invoice_number = "%05d" % (int(invoice_number)+1)
     
-    return kwargs_list,invoice_number
+    return kwargs_list, invoice_number
 
 def write_invoices_and_update_db(kwargs_list,invoice_number):
     #Creating necessary folders if they don't already exist
     date, year = datetime.now().strftime("%d %B %Y"), datetime.now().strftime("%Y")
     if year not in os.listdir('Invoices'):
         os.makedirs('Invoices/'+year)
-    folder = 'Invoices/'+year+'/'+str(len(os.listdir('invoices/'+year))//2+1)+'. '+ date + '/'
+    folder = 'Invoices/'+year+'/'+str(len(os.listdir('Invoices/'+year))//2+1)+'. '+ date + '/'
     os.makedirs(folder) 
     
     for kwargs in kwargs_list:
@@ -105,8 +107,6 @@ def write_invoices_and_update_db(kwargs_list,invoice_number):
         file.write(invoice_number)
 
     make_archive(folder,"zip",folder)
-
-
 
 if __name__=='__main__':
 
