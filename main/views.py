@@ -12,31 +12,34 @@ from django.core.files.storage import FileSystemStorage
 from .forms import UploadFileForm, ResidentForm, MatchPayment
 from .models import resident, invoice, payment
 
-from utils import file_num, get_latest, latest_num
-from web_scraping import scrape_data
-from invoices import handle_data, write_invoices_and_update_db
-from send_emails import send_email
+from backend.utils import file_num, get_latest, latest_num
+from backend.get_sefton_data import scrape_data
+from backend.invoices import get_invoice_data_from_sefton_csv, write_invoices_and_update_db
+from backend.send_emails import send_email
+
+from django.conf import settings
 
 # Create your views here.
 def home(request):
-    latest_remittance = get_latest('Remittance advice')
-    latest_invoices = get_latest('Invoices')    
+    latest_remittance = get_latest(settings.MEDIA_REMITTANCE)
+    latest_invoices = get_latest(settings.MEDIA_INVOICES)    
 
     if request.user.is_authenticated:
         if request.method=='POST':
             if request.POST['Sefton'] == 'Obtain latest invoices from Sefton':
-                if latest_num('Remittance advice') != latest_num('Invoices'): #Check if latest remittance advice matches latest invoice batch
-                    return render(request, "main/remittance_advice.html", {'data': handle_data(latest_remittance)[0]})
+                # Check if latest remittance advice matches latest invoice batch
+                if latest_num(settings.MEDIA_REMITTANCE) != latest_num(settings.MEDIA_INVOICES):
+                    return render(request, "main/remittance_advice.html", {'data': get_invoice_data_from_sefton_csv(latest_remittance)[0]})
                 else:
                     filename = scrape_data()
                     if filename: #filename returns None if new data isn't obtained
-                        return render(request, "main/remittance_advice.html", {'data': handle_data(filename)[0]})
+                        return render(request, "main/remittance_advice.html", {'data': get_invoice_data_from_sefton_csv(filename)[0]})
                     else:
                         return render(request, "main/home.html", {'new_data': not filename})
             if request.POST['Sefton'] == 'Confirm latest invoices from Sefton':
 
                 #This chunk of code is not robust, it will break if I include the pdf files in the remittance advice directories
-                args = handle_data(latest_remittance)
+                args = get_invoice_data_from_sefton_csv(latest_remittance)
                 write_invoices_and_update_db(*args)
                 send_email() #Sends email to the manager with the recent batch of invoices
 

@@ -81,20 +81,6 @@ def scrape_data(period_id=None):
 		data['_ctl0:ContentPlaceHolderMain:btnDownload'] = 'Download Data'
 		response = session.post(base_url+'report.aspx?report=404001', data=data)
 
-	#======================================================= ATTEMPTS TO GENERATE DOWNLOAD LINK FOR REMITTANCE ADVICE PDF ==============================================================================================
-
-		# x=session.post('https://providerportal.sefton.gov.uk/ProviderPortal_IAS_Live/ActiveReports.ReportService.asmx/RunReport?Token=6c3ce4b6-c18d-44d6-ac65-07aff74983b7')
-		# time.sleep(5)
-		# y=session.post('https://providerportal.sefton.gov.uk/ProviderPortal_IAS_Live/ActiveReports.ReportService.asmx/GetExportedReportLink?Token=6c3ce4b6-c18d-44d6-ac65-07aff74983b7')
-
-		# data['_ctl0:ContentPlaceHolderMain:btnView'] = 'View'
-		# response = session.post(base_url+'report.aspx?report=404001',data=data)
-		# page=soup(response.html.raw_html,'html.parser')
-		# print(page.find(id="ContentPlaceHolderMain__controlDiv").contents)
-		# response.html.render(sleep=3)
-		# page=soup(response.html.raw_html,'html.parser')
-		# print(page.find(id="ContentPlaceHolderMain__controlDiv").contents)
-
 	filename = save_data(response.content, tag)
 	return filename
 
