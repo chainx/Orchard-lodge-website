@@ -48,11 +48,13 @@ class payment(models.Model):
 
 class invoice(models.Model):
     Resident = models.ForeignKey(resident, on_delete=models.CASCADE, blank=True, null=True)
-    Payment =  models.ManyToManyField(payment, blank=True) #null has no effect on many to many relationships
+    Payment =  models.ManyToManyField(payment, blank=True) # null has no effect on many to many relationships
     
     filename = models.FileField(upload_to='Invoices/', blank=True, null=True)
-    invoice_number = models.CharField(max_length=5, validators=[MinLengthValidator(5)],blank=True, null=True) #Must have length 5
-    date = models.DateField(blank=True, null=True) #Date issued, which also (sort of) functions as a batch number
+    invoice_number = models.CharField(max_length=5, validators=[MinLengthValidator(5)],blank=True, null=True) # Must have length 5
+    batch_number = models.IntegerField(blank=True, null=True)
+    date = models.DateField(blank=True, null=True) # Date issued
+    year = models.IntegerField(blank=True, null=True) # Year issued, used together with batch_number
     total = models.IntegerField(blank=True, null=True)
     obsolete = models.BooleanField(default=False, blank=True, null=True)
     matched = models.BooleanField(default=False, blank=True, null=True)
@@ -66,4 +68,4 @@ class invoice(models.Model):
         return u'\u00A3' + f'{self.total/100:.2f}'
 
     def __str__(self):
-        return self.file.name
+        return str(self.filename)
