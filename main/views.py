@@ -21,8 +21,8 @@ from django.conf import settings
 
 # Create your views here.
 def home(request):
+    year = datetime.now().strftime("%Y")
     latest_remittance = get_latest(settings.MEDIA_REMITTANCE)
-    latest_invoices = get_latest(settings.MEDIA_INVOICES)    
 
     if request.user.is_authenticated:
         if request.method=='POST':
@@ -38,10 +38,9 @@ def home(request):
                         return render(request, "main/home.html", {'new_data': not filename})
             if request.POST['Sefton'] == 'Confirm latest invoices from Sefton':
 
-                #This chunk of code is not robust, it will break if I include the pdf files in the remittance advice directories
-                args = get_invoice_data_from_sefton_csv(latest_remittance)
-                write_invoices_and_update_db(*args)
-                send_email() #Sends email to the manager with the recent batch of invoices
+                invoices, batch_number, folder = get_invoice_data_from_sefton_csv(latest_remittance)
+                write_invoices_and_update_db(invoices, batch_number, folder)
+                # send_email() #Sends email to the manager with the recent batch of invoices
 
                 return render(request, "main/home.html", {'confirmed_data': True})
         return render(request, "main/home.html")
@@ -68,7 +67,7 @@ def residents(request):
     else:
         return redirect('/login')
 
-def specific_resident(request,res_url):
+def specific_resident(request, res_url):
     if request.user.is_authenticated:
         name=res_url.split('-')
         res = resident.objects.get(title=name[0], first=' '.join(name[1:-1]),last=name[-1])

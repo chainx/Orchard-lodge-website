@@ -37,5 +37,4 @@ def send_email():
         smtp.sendmail(Email_details['EMAIL_ADDRESS'], Email_details['RECIPIENT_EMAIL'], msg.as_string())
 
 if __name__=='__main__':
-##    print(get_latest('Invoices'))
     send_email()
