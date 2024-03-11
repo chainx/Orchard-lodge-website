@@ -1,127 +1,131 @@
 from datetime import datetime
 import os
+import shutil
 import json
 import string
 import secrets
-import time
 
-from bs4 import BeautifulSoup as soup
-import requests
-from requests_html import HTMLSession
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions
+from selenium.webdriver.support.ui import Select, WebDriverWait
+from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.firefox.service import Service
+from webdriver_manager.firefox import GeckoDriverManager
 
+from django.conf import settings
 
 origin = 'https://providerportal.sefton.gov.uk'
 base_url = origin + '/ProviderPortal_IAS_Live/secure/'
 
-def add_hidden_info(data, response):
-	page=soup(response.text,'html.parser')
-	for input in page.find_all("input", type="hidden"):
-		data[input['name']]=input['value']
-	return data
+login_details_path = settings.MEDIA_ROOT
+save_path = settings.MEDIA_REMITTANCE
 
-def scrape_data(period_id=None):
-	#Get password and passcode
-	Sefton_login_details = json.load(open('Sefton_login_details.json'))
-	email = Sefton_login_details['Email']
-	password = Sefton_login_details['Password']
-	passcode = Sefton_login_details['6 digit code']
+options = Options()
+options.add_argument('--headless')
+options.set_preference("browser.download.folderList", 2)
+options.set_preference("browser.download.manager.showWhenStarting", False)
+options.set_preference("browser.download.dir", str(save_path))
+options.set_preference("pdfjs.disabled", True)
 
-	with requests.Session() as session:
-	# with HTMLSession() as session:
+def scrape_data(period_id=None, download_csv=True, download_pdf=True):	   
+    Sefton_login_details = json.load(open(os.path.join(login_details_path, 'Sefton_login_details.json')))
+    email = Sefton_login_details['Email']
+    password = Sefton_login_details['Password']
+    passcode = Sefton_login_details['6 digit code']
 
-	#============================================================= LOGIN WITH EMAIL AND PASSWORD ======================================================================================================================
+    driver = webdriver.Firefox(options=options, service=Service(GeckoDriverManager().install()))
+    driver = login(driver, email, password, passcode)
+    period_range = download_sefton_statements(driver, period_id, download_csv, download_pdf)
 
-		response = session.get(base_url+'home.aspx', verify='Sefton_ssl_certificate.crt')
+    filename = file_manipulation(period_range)
+    return filename
 
-		form = {
-			'_ctl0:ContentPlaceHolderMain:txtEmail': email,
-			'_ctl0:ContentPlaceHolderMain:txtPassword': password,
-			'_ctl0:ContentPlaceHolderMain:btnLogin': 'Login'}
-		form = add_hidden_info(form, response)
-		headers = {'Referer': base_url+'home.aspx'}
+def file_manipulation(period_range):
+    year = datetime.now().strftime("%Y") # Folder structure is based on current date, not date of report
+    period_range = ' - '.join([datetime.strptime(date,"%d/%m/%Y").strftime("%d %B") for date in period_range.split(' - ')])
+    file_number = len(os.listdir(os.path.join(settings.MEDIA_REMITTANCE, year))) // 2 + 1
+    filename = f'{file_number}. {period_range}'
+    shutil.move(os.path.join(settings.MEDIA_REMITTANCE, 'report_export.csv'), os.path.join(settings.MEDIA_REMITTANCE, year, filename+'.csv'))
+    shutil.move(os.path.join(settings.MEDIA_REMITTANCE, 'ActiveReports.PDF'), os.path.join(settings.MEDIA_REMITTANCE, year, filename+'.PDF'))
+    return os.path.join(settings.MEDIA_REMITTANCE, year, filename+'.csv')
 
-		response = session.post(base_url+'home.aspx', headers=headers, data=form, allow_redirects=True)
-		page=soup(response.text,'html.parser')
+def login(driver, email, password, passcode):                  
+    driver.get(base_url+'home.aspx')
 
-		# Check if password needs updating and if so update
-		if page.find(id="ContentPlaceHolderMain_tbNewPassword"):
-			update_password(session, response, password)
+    email_field = driver.find_element(By.ID, 'ContentPlaceHolderMain_txtEmail')
+    password_field = driver.find_element(By.ID, 'ContentPlaceHolderMain_txtPassword')
+    email_field.send_keys(email)
+    password_field.send_keys(password)
 
-	#========================================================= ENTER PASSCODE DIGITS TO COMPLETE LOGIN ================================================================================================================
+    login_button = driver.find_element(By.ID, 'ContentPlaceHolderMain_btnLogin')
+    login_button.click()
 
-		digit1 = int(page.find(id="ContentPlaceHolderMain_lblSecurityCodePromptDigit1").text[0])
-		digit2 = int(page.find(id="ContentPlaceHolderMain_lblSecurityCodePromptDigit2").text[0])
-		digit_form = {
-			'_ctl0:ContentPlaceHolderMain:validatingDropDownListDigit1': passcode[digit1-1],
-			'_ctl0:ContentPlaceHolderMain:validatingDropDownListDigit2': passcode[digit2-1],
-			'_ctl0:ContentPlaceHolderMain:btnOK': 'OK'
-		}
-		digit_form = add_hidden_info(digit_form, response)
-		headers['Referer'] = base_url+'loginsecuritycode.aspx'
-		params = (('redirect', 'reportselect.aspx'),)
+    if driver.current_url != base_url + 'loginsecuritycode.aspx?redirect=providerselect.aspx':
+        update_password_from_webpage(driver, password)
 
-		response = session.post(base_url+'loginsecuritycode.aspx', headers=headers, params=params, data=digit_form)
+    first_digit_value = driver.find_element(By.ID, 'ContentPlaceHolderMain_lblSecurityCodePromptDigit1').text[0]
+    first_digit_field = driver.find_element(By.ID, 'ContentPlaceHolderMain_validatingDropDownListDigit1')
+    Select(first_digit_field).select_by_visible_text(passcode[int(first_digit_value)-1])
+    second_digit_value = driver.find_element(By.ID, 'ContentPlaceHolderMain_lblSecurityCodePromptDigit2').text[0]
+    second_digit_field = driver.find_element(By.ID, 'ContentPlaceHolderMain_validatingDropDownListDigit2')
+    Select(second_digit_field).select_by_visible_text(passcode[int(second_digit_value)-1])
 
-	#======================================================= REQUEST REMITTANCE ADVICE CSV FILES ======================================================================================================================
+    submit_button = driver.find_element(By.ID, 'ContentPlaceHolderMain_btnOK')
+    submit_button.click()
 
-		data = {
-			'_ctl0:ContentPlaceHolderMain:repeaterParams:_ctl1:ContractID': '120',
-			'_ctl0:ContentPlaceHolderMain:repeaterParams:_ctl2:PaymentMethod': '121',
-		}
-		response = session.get(base_url+'report.aspx?report=404001')
-		data = add_hidden_info(data, response)
+    return driver
 
-		response = session.post(base_url+'report.aspx?report=404001',data=data)
-		page=soup(response.text,'html.parser')
-		tag = page.find(id="ContentPlaceHolderMain_repeaterParams_ContractPaymentPeriodID_2").find("option",{'selected':'selected'})
+def download_sefton_statements(driver, period_id, download_csv, download_pdf):
+    driver.get(base_url+'report.aspx?report=404001')
 
-		if period_id:
-			data['_ctl0:ContentPlaceHolderMain:repeaterParams:_ctl3:ContractPaymentPeriodID'] = period_id
+    contract_selection = Select(driver.find_element(By.ID, 'ContentPlaceHolderMain_repeaterParams_ContractID_0'))
+    contract_selection.select_by_visible_text('Orchard Lodge Care Home')
 
-		data['_ctl0:ContentPlaceHolderMain:btnDownload'] = 'Download Data'
-		response = session.post(base_url+'report.aspx?report=404001', data=data)
+    period_selection_element = driver.find_element(By.ID, "ContentPlaceHolderMain_repeaterParams_ContractPaymentPeriodID_2")
+    period_range = period_selection_element.find_elements(By.TAG_NAME, 'option')[0].text
+    if period_id:
+        period_selection = Select(period_selection_element)
+        period_selection.select_by_value(period_id)
 
-	filename = save_data(response.content, tag)
-	return filename
+    if download_csv:
+        download_csv_button = driver.find_element(By.ID, 'ContentPlaceHolderMain_btnDownload')
+        download_csv_button.click()
 
-def save_data(content, tag, force_write=False):
-	#Creating necessary folders if they don't already exist
-	year = datetime.now().strftime("%Y")
-	if year not in os.listdir('Remittance advice'):
-		os.makedirs('Remittance advice/'+year)
+    if download_pdf:
+        generate_pdf_button = driver.find_element(By.ID, 'ContentPlaceHolderMain_btnView')
+        generate_pdf_button.click()
 
-	file_number = str(len(os.listdir('Remittance advice/'+year)) + 1)
-	dates = [datetime.strptime(date,"%d/%m/%Y").strftime("%d %B") for date in tag.text[2:].split(' - ')]
-	filename = 'Remittance advice/'+year+'/'+file_number+'. '+' - '.join(dates)+'.csv'
+        wait = WebDriverWait(driver, 10)
+        wait.until(expected_conditions.presence_of_element_located((By.TAG_NAME, 'iframe')))
+        pdf_url = driver.find_element(By.TAG_NAME, 'iframe').get_attribute("src")
+        
+        try: # Hacky way of dealing with the fact that driver.get(pdf_url) stalls when "pdfjs.disabled" is set to True
+            wait = WebDriverWait(driver, 0.1)
+            wait.until(expected_conditions.presence_of_element_located((By.XPATH, '//*[@id="download"]')))
+            driver.get(pdf_url)
+        except:
+            pass
+    
+    driver.quit()
+    return period_range
 
-	#If the data is old return None, otherwise write it to a csv file
-	data_already_saved = any([' - '.join(dates) in file for file in os.listdir('Remittance advice/'+year)])
-	if data_already_saved and not force_write:
-		filename = None
-	else:
-		with open(filename,'wb') as f:
-			f.write(content)
+def update_password_from_webpage(driver, password):
+    new_password = generate_new_password()
 
-	return filename #tag['value'] returns batch ID
+    current_password_field = driver.find_element(By.ID, '_ctl0:ContentPlaceHolderMain:tbCurrent')
+    current_password_field.send_keys(password)
+    new_password_field = driver.find_element(By.ID, '_ctl0:ContentPlaceHolderMain_tbNewPassword')
+    new_password_field.send_keys(new_password)
+    confirm_password_field = driver.find_element(By.ID, '_ctl0:ContentPlaceHolderMain_tbConfirm')
+    confirm_password_field.send_keys(new_password)
 
-def update_password(session, response, password, file_data):
-	new_password = generate_new_password(password, file_data)
+    submit_button = driver.find_element(By.ID, '_ctl0:ContentPlaceHolderMain:btnOK')
+    submit_button.click()
 
-	password_form = {
-		'_ctl0:ContentPlaceHolderMain:tbCurrent': password,
-		'_ctl0:ContentPlaceHolderMain_tbNewPassword': new_password,
-		'_ctl0:ContentPlaceHolderMain_tbConfirm': new_password,
-		'_ctl0:ContentPlaceHolderMain:btnOK': 'OK'
-	}
-	
-	password_form = add_hidden_info(password_form, response)
-	# headers['Referer'] = base_url + 'loginsecuritycode.aspx' #'login.aspx?ReturnUrl=/ProviderPortalLIVE/secure/changepassword.aspx?redirect=providerselect.aspx&redirect=providerselect.aspx'
-	params = (('redirect', 'providerselect.aspx'),)
+    return new_password
 
-	response = session.post(base_url+'loginsecuritycode.aspx', data=password_form)
-	return response
-
-def generate_new_password(password):
+def generate_new_password():
 	symbols = ['*', '%', '$','!',',','?','.','(',')']
 	new_password = ''
 	for _ in range(16):
@@ -134,9 +138,6 @@ def generate_new_password(password):
 			new_password += secrets.choice(string.digits)
 		if n==6:
 			new_password += secrets.choice(symbols)
-
-	print(password)
-	print(new_password)
   
 	#Update Sefton_login_details.json file with new password
 	with open('Sefton_login_details.json') as file:
@@ -147,4 +148,4 @@ def generate_new_password(password):
 	return new_password
 
 if __name__ == "__main__":
-	scrape_data()
+	   scrape_data()
