@@ -1,23 +1,25 @@
+import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from datetime import datetime
 from docx import Document
 import pandas as pd
 from shutil import make_archive
-import os
 import pathlib
 
 from backend.get_sefton_data import scrape_data
 
-# import os
-# os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'OrchardLodge.settings')
-# import django
-# django.setup()
+# os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'OrchardLodge.settings.production')
+import django
+django.setup()
 
 from django.conf import settings
 from main.models import resident, invoice
 
 def write_inovice(folder, date, Resident, sub_items, total, invoice_number, batch_number=None):
 
-    document = Document('Invoices/INVOICE TEMPLATE.docx')
+    document = Document(os.path.join(settings.MEDIA_INVOICES, 'INVOICE TEMPLATE.docx'))
 
     for paragraph in document.paragraphs:
         if paragraph.text.count("NAME OF RECIPIENT")==1: paragraph.text=paragraph.text.replace("NAME OF RECIPIENT",Resident)
@@ -45,9 +47,9 @@ def write_inovice(folder, date, Resident, sub_items, total, invoice_number, batc
 
 #==============================================================================================================================================================================
 
-def get_invoice_data_from_sefton_csv(filename): #Obtains data pertinent to writing invoices and updating the database
+def get_invoice_data_from_sefton_csv(filename): # Obtains data pertinent to writing invoices and updating the database
 
-    date, year = datetime.now().strftime("%d %B %Y"), datetime.now().strftime("%Y") 
+    date, year = datetime.now().strftime("%d %B %Y"), datetime.now().strftime("%Y")
     
     batch_number = 1 # Default value, which is used at the start of a new year
     current_year_invoices = invoice.objects.filter(date__year=year)
@@ -58,16 +60,15 @@ def get_invoice_data_from_sefton_csv(filename): #Obtains data pertinent to writi
 
     invoice_number = max(invoice.objects.values_list('invoice_number', flat=True))
 
-    df = pd.read_csv(filename).fillna('') #if ServiceTotalLabel != 'Total for Orchard Lodge Care Home' then it may contain a note from Sefton
+    df = pd.read_csv(filename).fillna('') # if ServiceTotalLabel != 'Total for Orchard Lodge Care Home' then it may contain a note from Sefton
     payment_period = df.iloc[0]['ReportContext'].split('Payment Period from ')[1]
 
     invoices=[]
     for res in df.Person.unique():
-        filt = (df['Person']==res) & (df['IsIncome']==1)
+        filt = (df['Person']==res) & (df['IsIncome']==1) # Filter entries for each resident which are incomes (costs are paid by Sefton)
         if not df.loc[filt].empty:
             invoice_number = "%05d" % (int(invoice_number)+1)
             row = {
-                'folder' : folder,
                 'Resident' : res,
                 'date' : date,
                 'sub_items' : df.loc[filt][['Amount','PaymentItemDates','AdjustmentLabel']],
@@ -77,11 +78,10 @@ def get_invoice_data_from_sefton_csv(filename): #Obtains data pertinent to writi
             }
             invoices.append(row)
 
-    residents = resident.objects.filter(current=True,private=True).order_by('last') #Add data for private residents
+    residents = resident.objects.filter(current=True, private=True).order_by('last') # Add data for private residents
     for res in residents:
         invoice_number = "%05d" % (int(invoice_number)+1)
         row = {
-            'folder' : folder,
             'Resident' : res.name,
             'date' : date,
             'sub_items' : pd.DataFrame({'Amount': res.private_rate, 'PaymentItemDates' : payment_period, 'AdjustmentLabel' : ''}, index=[0]),
@@ -90,32 +90,35 @@ def get_invoice_data_from_sefton_csv(filename): #Obtains data pertinent to writi
         }
         invoices.append(row)
     
-    return invoices, invoice_number, folder
+    return invoices, batch_number, folder
 
 #==============================================================================================================================================================================
 
-def extract_args_for_db(invoice_data): #Extract arguments for updating database from arguments for writing invoice, creates resident instance for new residents
+# Extract arguments for updating database from arguments for writing invoice, creates resident instance for new residents
+def extract_args_for_db(invoice_data, batch_number): 
     name = invoice_data['Resident'].split()
     invoice_data['filename'] = invoice_data['folder']+invoice_data['invoice_number']+' - '+invoice_data['Resident']+'.docx'
+    invoice_data['batch_number'] = batch_number
     invoice_data['Resident'] = resident.objects.get_or_create(title=name[0], first=' '.join(name[1:-1]), last=name[-1])[0]
     invoice_data['date'] = datetime.strptime(invoice_data['date'],'%d %B %Y').strftime('%Y-%m-%d')
-    invoice_data['total'] *= 100 #Amounts are stored in pennies in the database
-    [invoice_data.pop(key) for key in ['folder','sub_items']]
+    invoice_data['year'] = datetime.strptime(invoice_data['date'],'%Y-%m-%d').year
+    invoice_data['total'] *= 100 # Amounts are stored in pennies in the database
+    invoice_data.pop('sub_items')
     return invoice_data
 
-def write_invoices_and_update_db(invoices, invoice_number, folder):
+def write_invoices_and_update_db(invoices, batch_number, folder):
     pathlib.Path(folder).mkdir(parents=True, exist_ok=True)
     
     for invoice_data in invoices:
-        write_inovice(**invoice_data) #Write invoice file locally
-        invoice(**extract_args_for_db(invoice_data)).save() #Save invoices to the database
+        write_inovice(folder, **invoice_data) # Write invoice file locally
+        invoice(**extract_args_for_db(invoice_data, batch_number)).save() # Save invoices to the database
 
     make_archive(folder, "zip", folder)
 
 if __name__=='__main__':
 
     from utils import get_latest
-    latest_remittance = get_latest('Remittance advice')
-    args = get_invoice_data_from_sefton_csv(latest_remittance)
+    latest_remittance = get_latest(settings.MEDIA_REMITTANCE)
+    invoices, batch_number, folder = get_invoice_data_from_sefton_csv(latest_remittance)
 
-    write_invoices_and_update_db(*args)
+    write_invoices_and_update_db(invoices, batch_number, folder)
