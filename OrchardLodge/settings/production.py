@@ -4,11 +4,12 @@ import json
 
 from OrchardLodge.settings.base import *
 
-MEDIA_ROOT = pathlib.Path('/home/chainx/Documents/Orchard lodge accounting data')
+MEDIA_ROOT = pathlib.Path('/home/chainx/Documents/Orchard Lodge accounting data')
 MEDIA_URL = '/Invoices/'
 
 MEDIA_INVOICES = Path(os.path.join(MEDIA_ROOT, 'Invoices'))
 MEDIA_REMITTANCE = Path(os.path.join(MEDIA_ROOT, 'Remittance advice'))
+MEDIA_PAYMENTS = Path(os.path.join(MEDIA_ROOT, 'Bank statements'))
 
 secret_settings = json.load(open(os.path.join(MEDIA_ROOT, 'Production_settings.json')))
 

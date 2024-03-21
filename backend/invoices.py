@@ -9,13 +9,21 @@ from shutil import make_archive
 import pathlib
 
 from backend.get_sefton_data import scrape_data
+from backend.utils import get_latest
 
-# os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'OrchardLodge.settings.production')
 import django
 django.setup()
 
 from django.conf import settings
 from main.models import resident, invoice
+
+def main():
+    latest_remittance = get_latest(settings.MEDIA_REMITTANCE)
+    invoices, batch_number, folder = get_invoice_data_from_sefton_csv(latest_remittance)
+
+    write_invoices_and_update_db(invoices, batch_number, folder)
+
+#==============================================================================================================================================================================
 
 def write_inovice(folder, date, Resident, sub_items, total, invoice_number, batch_number=None):
 
@@ -43,7 +51,6 @@ def write_inovice(folder, date, Resident, sub_items, total, invoice_number, batc
         if paragraph.text.count('TOTAL')==1: paragraph.text=paragraph.text.replace('TOTAL',str(total))
 
     document.save(os.path.join(folder, invoice_number+' - '+Resident+'.docx'))
-
 
 #==============================================================================================================================================================================
 
@@ -115,10 +122,7 @@ def write_invoices_and_update_db(invoices, batch_number, folder):
 
     make_archive(folder, "zip", folder)
 
+#==============================================================================================================================================================================
+
 if __name__=='__main__':
-
-    from utils import get_latest
-    latest_remittance = get_latest(settings.MEDIA_REMITTANCE)
-    invoices, batch_number, folder = get_invoice_data_from_sefton_csv(latest_remittance)
-
-    write_invoices_and_update_db(invoices, batch_number, folder)
+    main()

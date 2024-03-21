@@ -12,7 +12,22 @@
             "args": ["runserver", "--settings=OrchardLodge.settings.development"],
             "django": true,
             "justMyCode": true,
-            // "console": "integratedTerminal"
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python Debugger: Payments",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/backend/payments.py",
+            "console": "integratedTerminal",
+        },
+        {
+            "name": "Python Debugger: Santander Scraper",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/backend/get_santander_data.py",
+            "args": ["1/1/2010"],
+            "console": "integratedTerminal",
         }
     ]
 }
