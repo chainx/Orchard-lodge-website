@@ -45,7 +45,8 @@ def main():
     parser.add_argument('date', type=str, help='Date in the format DD-MM-YYYY')
     args = parser.parse_args()
     headless = bool(args.headless)
-    from_date = datetime.datetime.strptime(args.date, '%d-%m-%Y').date()
+    date = args.date.replace('/', '-')
+    from_date = datetime.datetime.strptime(date, '%d-%m-%Y').date()
 
     scrape_santander_bank_statements(from_date, datetime.datetime.now().date(), headless)
 
@@ -116,11 +117,12 @@ def log_in(driver):
 
     wait = WebDriverWait(driver, 10)
     wait.until(EC.url_changes(driver.current_url))
+    time.sleep(5) # Wait some additional time for a further redirect
 
     if driver.current_url == 'https://business.santander.co.uk/olb/app/logon/access/#/otp':
         two_factor_authentication(driver)
-    # if driver.current_url == 'https://business.santander.co.uk/olb/app/logon/interstitial/#/': # TODO: Fix this
-    #     not_interested(driver)
+    if driver.current_url == 'https://business.santander.co.uk/olb/app/logon/interstitial/#/': # TODO: Fix this
+        not_interested(driver)
         
 def navigate_to_download_page(driver):
     element = WebDriverWait(driver, 10).until(
@@ -156,13 +158,15 @@ def input_date_form_field(driver, to_or_from, day_month_year_type, day_month_yea
 # Santander has a limit on how many transactions can be downloaded in one go, so the full time period
 # must be split into 3 month components to ensure the limit is not reached
 def partition_dates(from_date, to_date): 
-    date_partition = [to_date]
-    date = to_date
-    while date > from_date:
-        date = max(date - datetime.timedelta(days=90), from_date)
+    date_partition = [from_date]
+    date = from_date
+    while date < to_date:
+        date = min(date + datetime.timedelta(days=90), to_date)
         date_partition.append(date)
 
-    date_partition = zip(date_partition[1:], date_partition[:-1])
+    from_dates = date_partition[:1] + [date + datetime.timedelta(days=1) for date in date_partition[1:-1]] # Extra day added so no overlap between dates
+    to_dates = date_partition[1:]
+    date_partition = zip(from_dates, to_dates)
     return date_partition
 
 
