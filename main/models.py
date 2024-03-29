@@ -33,9 +33,9 @@ class payment(models.Model):
 
     cash='Cash'
     cheque='Cheque'
-    bank='Bank'
-    expected='Expected'
-    type_choices = [(cash,cash),(cheque,cheque),(bank,bank),(expected,expected)]
+    santander='Santander'
+    rbs='RBS'
+    type_choices = [(cash,cash),(cheque,cheque),(santander, santander),(rbs, rbs)]
     type = models.CharField(max_length=8, choices=type_choices, blank=True, null=True)
 
 
