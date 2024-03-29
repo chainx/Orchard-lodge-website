@@ -15,10 +15,10 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "Python Debugger: Payments",
+            "name": "Python Debugger: Current file",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/backend/payments.py",
+            "program": "${file}",
             "console": "integratedTerminal",
         },
         {
