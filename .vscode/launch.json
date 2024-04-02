@@ -5,24 +5,24 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python Debugger: Django",
+            "name": "Django",
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/manage.py",
-            "args": ["runserver", "--settings=OrchardLodge.settings.development"],
+            "args": ["runserver", "--settings=OrchardLodge.settings.production"],
             "django": true,
             "justMyCode": true,
             "console": "integratedTerminal"
         },
         {
-            "name": "Python Debugger: Current file",
+            "name": "Current file",
             "type": "debugpy",
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
         },
         {
-            "name": "Python Debugger: Santander Scraper",
+            "name": "Santander Scraper",
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/backend/get_santander_data.py",

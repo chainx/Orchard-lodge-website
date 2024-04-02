@@ -8,7 +8,7 @@ import pandas as pd
 from shutil import make_archive
 import pathlib
 
-from backend.get_sefton_data import scrape_data
+from backend.get_sefton_data import get_remittance_advice
 from backend.utils import get_latest
 
 import django
@@ -102,9 +102,9 @@ def get_invoice_data_from_sefton_csv(filename): # Obtains data pertinent to writ
 #==============================================================================================================================================================================
 
 # Extract arguments for updating database from arguments for writing invoice, creates resident instance for new residents
-def extract_args_for_db(invoice_data, batch_number): 
+def extract_args_for_db(invoice_data, batch_number, folder): 
     name = invoice_data['Resident'].split()
-    invoice_data['filename'] = invoice_data['folder']+invoice_data['invoice_number']+' - '+invoice_data['Resident']+'.docx'
+    invoice_data['filename'] = folder+invoice_data['invoice_number']+' - '+invoice_data['Resident']+'.docx'
     invoice_data['batch_number'] = batch_number
     invoice_data['Resident'] = resident.objects.get_or_create(title=name[0], first=' '.join(name[1:-1]), last=name[-1])[0]
     invoice_data['date'] = datetime.strptime(invoice_data['date'],'%d %B %Y').strftime('%Y-%m-%d')
@@ -118,7 +118,7 @@ def write_invoices_and_update_db(invoices, batch_number, folder):
     
     for invoice_data in invoices:
         write_inovice(folder, **invoice_data) # Write invoice file locally
-        invoice(**extract_args_for_db(invoice_data, batch_number)).save() # Save invoices to the database
+        invoice(**extract_args_for_db(invoice_data, batch_number, folder)).save() # Save invoices to the database
 
     make_archive(folder, "zip", folder)
 
