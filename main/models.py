@@ -36,7 +36,7 @@ class payment(models.Model):
     santander='Santander'
     rbs='RBS'
     type_choices = [(cash,cash),(cheque,cheque),(santander, santander),(rbs, rbs)]
-    type = models.CharField(max_length=8, choices=type_choices, blank=True, null=True)
+    type = models.CharField(max_length=9, choices=type_choices, blank=True, null=True)
 
 
     @property
@@ -69,3 +69,8 @@ class invoice(models.Model):
 
     def __str__(self):
         return str(self.filename)
+    
+class sefton_login_details(models.Model):
+    email = models.CharField(max_length=256, blank=True, null=True)
+    password = models.CharField(max_length=256, blank=True, null=True)
+    passcode = models.CharField(max_length=6, blank=True, null=True)
