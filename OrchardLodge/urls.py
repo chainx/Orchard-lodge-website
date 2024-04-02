@@ -30,4 +30,5 @@ urlpatterns = [
     path('residents/<res_url>/',views.specific_resident, name="specific_resident"),
     path('upload/', views.upload, name="upload"),
     path('download/', views.download, name="download"),
+    path('payments/', views.payments, name="payments"),
 ]

@@ -13,8 +13,9 @@ from .forms import UploadFileForm, ResidentForm, MatchPayment
 from .models import resident, invoice, payment
 
 from backend.utils import file_num, get_latest, latest_num
-from backend.get_sefton_data import scrape_data
+from backend.get_sefton_data import get_remittance_advice
 from backend.invoices import get_invoice_data_from_sefton_csv, write_invoices_and_update_db
+from backend.payments import match_payments_to_resident
 from backend.send_emails import send_email
 
 from django.conf import settings
@@ -31,7 +32,7 @@ def home(request):
                 if latest_num(settings.MEDIA_REMITTANCE) != latest_num(settings.MEDIA_INVOICES):
                     return render(request, "main/remittance_advice.html", {'data': get_invoice_data_from_sefton_csv(latest_remittance)[0]})
                 else:
-                    filename = scrape_data()
+                    filename = get_remittance_advice()
                     if filename: #filename returns None if new data isn't obtained
                         return render(request, "main/remittance_advice.html", {'data': get_invoice_data_from_sefton_csv(filename)[0]})
                     else:
@@ -47,12 +48,28 @@ def home(request):
     else:
         return redirect('/login')
 
+def payments(request):
+    if request.user.is_authenticated:
+        data = {
+            'unmatched_payments': payment.objects.filter(Resident_id__isnull=True).order_by('date').reverse(),
+            'residents': resident.objects.all(),
+        }
+        if request.method=='POST':
+            filter_input = request.POST['filter_input']
+            resident_id = request.POST['resident_id']
+            multiple_matches = match_payments_to_resident(resident_id, filter_input)
+            if multiple_matches:
+                raise ValueError('Multiple matches!')
+        return render(request, "main/payments.html", data)
+    else:
+        return redirect('/login')
+    
 def residents(request):
     if request.user.is_authenticated:
         residents = resident.objects.exclude(first='Council').exclude(first='Cheques').order_by('last')
         data = {
-            'current_residents' : residents.filter(current=True,private=False),
-            'private_residents' : residents.filter(current=True,private=True),
+            'current_residents' : residents.filter(current=True, private=False),
+            'private_residents' : residents.filter(current=True, private=True),
             'former_residents' : residents.filter(current=False),
         }
         if request.method=='POST':
@@ -63,7 +80,7 @@ def residents(request):
         else:
             form = ResidentForm()
         data['form']=form
-        return render(request, "main/residents.html",data)
+        return render(request, "main/residents.html", data)
     else:
         return redirect('/login')
 
@@ -99,7 +116,7 @@ def specific_resident(request, res_url):
             payload['form'] = ResidentForm(instance=res)
             for invoice in payload['invoices']:
                 payload[str(invoice.id)+'_form']=MatchPayment()
-        return render(request, "main/specific_resident.html",payload)
+        return render(request, "main/specific_resident.html", payload)
     else:
         return redirect('/login')
 
