@@ -1,5 +1,8 @@
-from datetime import datetime
 import os
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from datetime import datetime
 import shutil
 import json
 import string
@@ -13,12 +16,16 @@ from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.firefox.service import Service
 from webdriver_manager.firefox import GeckoDriverManager
 
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'OrchardLodge.settings.production')
+import django
+django.setup()
+
 from django.conf import settings
+from main.models import sefton_login_details
 
 origin = 'https://providerportal.sefton.gov.uk'
 base_url = origin + '/ProviderPortal_IAS_Live/secure/'
 
-login_details_path = settings.MEDIA_ROOT
 save_path = settings.MEDIA_REMITTANCE
 
 options = Options()
@@ -28,14 +35,11 @@ options.set_preference("browser.download.manager.showWhenStarting", False)
 options.set_preference("browser.download.dir", str(save_path))
 options.set_preference("pdfjs.disabled", True)
 
-def scrape_data(period_id=None, download_csv=True, download_pdf=True):	   
-    Sefton_login_details = json.load(open(os.path.join(login_details_path, 'Sefton_login_details.json')))
-    email = Sefton_login_details['Email']
-    password = Sefton_login_details['Password']
-    passcode = Sefton_login_details['6 digit code']
-
+def get_remittance_advice(period_id=None, download_csv=True, download_pdf=True):	   
     driver = webdriver.Firefox(options=options, service=Service(GeckoDriverManager().install()))
-    driver = login(driver, email, password, passcode)
+
+    SEFTON_LOGIN_DETAILS = sefton_login_details.objects.get(id=1)
+    driver = login(driver, SEFTON_LOGIN_DETAILS.email, SEFTON_LOGIN_DETAILS.password, SEFTON_LOGIN_DETAILS.passcode)
     period_range = download_sefton_statements(driver, period_id, download_csv, download_pdf)
 
     filename = file_manipulation(period_range)
@@ -113,39 +117,38 @@ def download_sefton_statements(driver, period_id, download_csv, download_pdf):
 def update_password_from_webpage(driver, password):
     new_password = generate_new_password()
 
-    current_password_field = driver.find_element(By.ID, '_ctl0:ContentPlaceHolderMain:tbCurrent')
+    current_password_field = driver.find_element(By.ID, 'ContentPlaceHolderMain_tbCurrent')
     current_password_field.send_keys(password)
-    new_password_field = driver.find_element(By.ID, '_ctl0:ContentPlaceHolderMain_tbNewPassword')
+    new_password_field = driver.find_element(By.ID, 'ContentPlaceHolderMain_tbNewPassword')
     new_password_field.send_keys(new_password)
-    confirm_password_field = driver.find_element(By.ID, '_ctl0:ContentPlaceHolderMain_tbConfirm')
+    confirm_password_field = driver.find_element(By.ID, 'ContentPlaceHolderMain_tbConfirm')
     confirm_password_field.send_keys(new_password)
 
-    submit_button = driver.find_element(By.ID, '_ctl0:ContentPlaceHolderMain:btnOK')
+    submit_button = driver.find_element(By.ID, 'ContentPlaceHolderMain_btnOK')
     submit_button.click()
 
     return new_password
 
 def generate_new_password():
-	symbols = ['*', '%', '$','!',',','?','.','(',')']
-	new_password = ''
-	for _ in range(16):
-		n=secrets.choice([1,2,3,4,5,6])
-		if n==1 or n==2:
-			new_password += secrets.choice(string.ascii_lowercase)
-		if n==3 or n==4:
-			new_password += secrets.choice(string.ascii_uppercase)
-		if n==5:
-			new_password += secrets.choice(string.digits)
-		if n==6:
-			new_password += secrets.choice(symbols)
-  
-	#Update Sefton_login_details.json file with new password
-	with open('Sefton_login_details.json') as file:
-		Sefton_login_details = json.load(file)
-		Sefton_login_details['Password'] = new_password
-		json.dump(Sefton_login_details, file)
+    symbols = ['*', '%', '$','!',',','?','.','(',')']
+    new_password = ''
+    for _ in range(16):
+        n=secrets.choice([1,2,3,4,5,6])
+        if n==1 or n==2:
+            new_password += secrets.choice(string.ascii_lowercase)
+        if n==3 or n==4:
+            new_password += secrets.choice(string.ascii_uppercase)
+        if n==5:
+            new_password += secrets.choice(string.digits)
+        if n==6:
+            new_password += secrets.choice(symbols)
+    
+    #Update Sefton_login_details.json file with new password
+    SEFTON_LOGIN_DETAILS = sefton_login_details.objects.get(id=1)
+    SEFTON_LOGIN_DETAILS.password = new_password
+    SEFTON_LOGIN_DETAILS.save()
 
-	return new_password
+    return new_password
 
 if __name__ == "__main__":
-	   scrape_data()
+	   get_remittance_advice()
