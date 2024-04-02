@@ -31,24 +31,25 @@
         <br/>
         <button type="submit" class="btn btn-primary">Submit</button>
     </form>
+    
     <br/>
 
 <!-- ======================================================================================================================================================================================== -->
 
     <h3>Unmatched invoices and payments for {{res.name}}</h3>
-    <div class="row">
-        <div class="column">
+    <div class="row" style="display: flex; flex-wrap: wrap;">
+        <div class="column" style="flex: 1; min-width: 40%; max-width: 40%;">
             <form method="post" class="form-group">
                 {% csrf_token %}
                 <table class="table table-bordered table-striped table-sm">
-                    <thread>
+                    <thead>
                         <tr>
                             <th>Invoice number</th>
                             <th>Date</th>
                             <th>Total</th>
                             <th>Match</th>
                         </tr>
-                    </thread>
+                    </thead>
                     <tbody>
                         {% for invoice in invoices %}
                             <tr>
@@ -65,9 +66,9 @@
                 <button type="submit" class="btn btn-primary">Submit</button>
             </form>
         </div>
-        <div class="column">
-            <table style="float: right" class="table table-striped table-bordered table-sm">
-                <thread>
+        <div class="column" style="flex: 1; min-width: 60%; max-width: 60%;">
+            <table class="table table-striped table-bordered table-sm">
+                <thead>
                     <tr>
                         <th>ID</th>
                         <th>Date</th>
@@ -75,7 +76,7 @@
                         <th>Amount</th>
                         <th>Type</th>
                     </tr>
-                </thread>
+                </thead>
                 <tbody>
                     {% for payment in payments %}
                         <tr>
@@ -90,4 +91,5 @@
             </table>
         </div>
     </div>
+
 {% endblock %}
