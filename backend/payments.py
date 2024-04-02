@@ -8,8 +8,12 @@ import django
 django.setup()
 
 from django.conf import settings
+from django.db.models import F, Value
+from django.db.models.functions import Concat
+
 from main.models import payment
-from get_santander_data import scrape_santander_bank_statements
+from main.models import resident
+from backend.get_santander_data import scrape_santander_bank_statements
 
 santander_file_path = os.path.join(settings.MEDIA_PAYMENTS, 'Santander')
 santander_file = os.path.join(settings.MEDIA_PAYMENTS, 'Santander.xlsx')
@@ -26,8 +30,18 @@ def main():
 
     update_db(downloaded_payments, from_date)
 
+def match_payments_to_resident(resident_id, filters):
+    for filter in filters.split(';'):
+        matching_payments = payment.objects.filter(description__icontains=filter).exclude(Resident_id=resident_id)
+        already_matched_payments = matching_payments.filter(Resident_id__isnull=False)
+        if already_matched_payments:
+            other_resident_matches = set(already_matched_payments.values_list('Resident_id', flat=True))
+            return other_resident_matches
+        matching_payments.update(Resident_id=resident_id)
+    resident.objects.filter(id=resident_id).update(filters=filters.lower())
+
 def update_db(downloaded_payments, from_date):
-    new_payments = get_new_payments(downloaded_payments)
+    new_payments = get_new_payments(downloaded_payments, from_date)
     for index, payment_ in new_payments[::-1].iterrows():
         payment(**extract_payment_kwargs_for_db(payment_, 'Santander')).save()
 
