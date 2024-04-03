@@ -44,11 +44,11 @@ def write_inovice(folder, date, Resident, sub_items, total, invoice_number, batc
         paragraph.text='From ' + debt[2] + reason
         
         paragraph =  document.tables[0].cell(0,1).paragraphs[8+count]
-        paragraph.text=chr(163)+str(debt[1])
+        paragraph.text = u'\u00A3' + f'{debt[1]:.2f}' # chr(163) + str(debt[1])
         count+=1
 
     for paragraph in document.tables[0].cell(1,1).paragraphs:
-        if paragraph.text.count('TOTAL')==1: paragraph.text=paragraph.text.replace('TOTAL',str(total))
+        if paragraph.text.count('TOTAL')==1: paragraph.text=paragraph.text.replace('TOTAL', f'{total/100:.2f}')
 
     document.save(os.path.join(folder, invoice_number+' - '+Resident+'.docx'))
 
@@ -78,8 +78,8 @@ def get_invoice_data_from_sefton_csv(filename): # Obtains data pertinent to writ
             row = {
                 'Resident' : res,
                 'date' : date,
-                'sub_items' : df.loc[filt][['Amount','PaymentItemDates','AdjustmentLabel']],
-                'total' : df.loc[filt]['Amount'].sum(),
+                'sub_items' : df.loc[filt][['Amount', 'PaymentItemDates', 'AdjustmentLabel']],
+                'total' : int(df.loc[filt]['Amount'].sum()*100), # Amounts are stored in pennies in the database
                 'invoice_number' : invoice_number,
                 'batch_number': batch_number
             }
@@ -102,14 +102,14 @@ def get_invoice_data_from_sefton_csv(filename): # Obtains data pertinent to writ
 #==============================================================================================================================================================================
 
 # Extract arguments for updating database from arguments for writing invoice, creates resident instance for new residents
-def extract_args_for_db(invoice_data, batch_number, folder): 
+def extract_invoice_args_for_db(invoice_data, batch_number, folder):
     name = invoice_data['Resident'].split()
     invoice_data['filename'] = folder+invoice_data['invoice_number']+' - '+invoice_data['Resident']+'.docx'
     invoice_data['batch_number'] = batch_number
     invoice_data['Resident'] = resident.objects.get_or_create(title=name[0], first=' '.join(name[1:-1]), last=name[-1])[0]
     invoice_data['date'] = datetime.strptime(invoice_data['date'],'%d %B %Y').strftime('%Y-%m-%d')
     invoice_data['year'] = datetime.strptime(invoice_data['date'],'%Y-%m-%d').year
-    invoice_data['total'] *= 100 # Amounts are stored in pennies in the database
+    invoice_data['total'] *= 100 
     invoice_data.pop('sub_items')
     return invoice_data
 
@@ -118,9 +118,9 @@ def write_invoices_and_update_db(invoices, batch_number, folder):
     
     for invoice_data in invoices:
         write_inovice(folder, **invoice_data) # Write invoice file locally
-        invoice(**extract_args_for_db(invoice_data, batch_number, folder)).save() # Save invoices to the database
+        # invoice(**extract_invoice_args_for_db(invoice_data, batch_number, folder)).save() # Save invoices to the database
 
-    make_archive(folder, "zip", folder)
+    # make_archive(folder, "zip", folder)
 
 #==============================================================================================================================================================================
 
