@@ -44,7 +44,7 @@ def write_inovice(folder, date, Resident, sub_items, total, invoice_number, batc
         paragraph.text='From ' + debt[2] + reason
         
         paragraph =  document.tables[0].cell(0,1).paragraphs[8+count]
-        paragraph.text = u'\u00A3' + f'{debt[1]:.2f}' # chr(163) + str(debt[1])
+        paragraph.text = u'\u00A3' + f'{debt[1]:.2f}'
         count+=1
 
     for paragraph in document.tables[0].cell(1,1).paragraphs:
