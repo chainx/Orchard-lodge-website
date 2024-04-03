@@ -88,35 +88,35 @@ def specific_resident(request, res_url):
     if request.user.is_authenticated:
         name=res_url.split('-')
         res = resident.objects.get(title=name[0], first=' '.join(name[1:-1]),last=name[-1])
-        payload = {
+        data = {
             'res':res,
-            'invoices':res.invoice_set.all().order_by('date').reverse(),
-            'payments':res.payment_set.all().order_by('date').reverse()
+            'matched_invoices':res.invoice_set.filter(obsolete=False, matched=True).order_by('year', 'batch_number').reverse(),
+            'matched_payments':res.payment_set.filter(matched=True).order_by('date').reverse(),
+            'unmatched_invoices':res.invoice_set.filter(obsolete=False, matched=False).order_by('year', 'batch_number').reverse(),
+            'unmatched_payments':res.payment_set.filter(matched=False).order_by('date').reverse(),
+            'resident_form': ResidentForm(instance=res),
         }
 
-        if request.method=='POST':
-            #Form for updating resident information
-            form = ResidentForm(request.POST,instance=res) 
-            payload['form']=form
+        if request.method=='POST' and request.POST['form_type']=='Updating resident info':
+            form = ResidentForm(request.POST, instance=res)
             if form.is_valid():
+                data['resident_form'] = form
                 form.save()
-                return redirect('/residents')
+                return render(request, "main/specific_resident.html", data)
 
-            #Forms for matching invoices and payments
-            for invoice in payload['invoices']:
-                match_form=MatchPayment(request.POST)
-                payload[str(invoice.id)+'_form']=match_form
-                if match_form.is_valid():
-                    id = match_form.cleaned_data.get("ID")
-                    payments = payment.objects.filter(id=id)
-                    invoice.Payment.set(payments)
-                    invoice.save()
-                    return redirect('/residents')
-        else:
-            payload['form'] = ResidentForm(instance=res)
-            for invoice in payload['invoices']:
-                payload[str(invoice.id)+'_form']=MatchPayment()
-        return render(request, "main/specific_resident.html", payload)
+        if request.method=='POST' and request.POST['form_type']=='Payment matching':
+            payments_matched = {int(key.split(' - ')[1]): int(value) for key, value in request.POST.items() if 'Payment ID' in key and value != ''}
+            for invoice_id, payment_id in payments_matched.items():
+                invoice_ = invoice.objects.get(id=invoice_id)
+                payments = payment.objects.filter(id=payment_id)
+
+                invoice_.matched = True
+                invoice_.save()
+                payments.update(matched=True)
+                # invoice_.Payment.set(payments)
+                return render(request, "main/specific_resident.html", data)
+
+        return render(request, "main/specific_resident.html", data)
     else:
         return redirect('/login')
 
