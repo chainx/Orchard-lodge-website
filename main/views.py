@@ -9,7 +9,7 @@ from django.http import HttpResponse, HttpResponseRedirect
 from django.contrib import messages
 from django.core.files.storage import FileSystemStorage
 
-from .forms import UploadFileForm, ResidentForm, MatchPayment
+from .forms import UploadFileForm, ResidentForm
 from .models import resident, invoice, payment
 
 from backend.utils import file_num, get_latest, latest_num
@@ -113,12 +113,16 @@ def specific_resident(request, res_url):
                 invoice_.matched = True
                 invoice_.save()
                 payments.update(matched=True)
-                # invoice_.Payment.set(payments)
+                invoice_.Payment.set(payments)
                 return render(request, "main/specific_resident.html", data)
 
         return render(request, "main/specific_resident.html", data)
     else:
         return redirect('/login')
+    
+def cash_and_cheques(request):
+    data = {}
+    return render(request, "main/cash_and_cheques.html", data)
 
 def upload(request):
     if request.user.is_authenticated:

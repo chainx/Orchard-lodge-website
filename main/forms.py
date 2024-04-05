@@ -23,11 +23,3 @@ class ResidentForm(forms.ModelForm):
     def is_valid(self):
         valid = super(ResidentForm, self).is_valid()
         return valid
-
-class MatchPayment(forms.Form):
-    ID = forms.IntegerField(label='Invoice ID',required=False)
-
-class InvoiceForm(forms.ModelForm):
-    class Meta:
-        model = invoice
-        fields = ['Payment']
