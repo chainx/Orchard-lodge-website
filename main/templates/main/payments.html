@@ -49,23 +49,20 @@ Payments page
 {% endblock %}
 
 {% block scripts %}
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
-    <script>
-        $(document).ready(function() {
-            $('#residentSelect').select2({
-                placeholder: "Select a resident",
-                allowClear: true
-            });
-        
-            $('#residentSelect').change(function() {
-                // Get the data-filter attribute of the selected option
-                var selectedFilter = $(this).find('option:selected').data('filter');
-                // Update the value of the filter_input
-                $('#filter_input').val(selectedFilter);
-            });
+{{ block.super }}
+<script>
+    $(document).ready(function() {
+        $('#residentSelect').select2({
+            placeholder: "Select a resident",
+            allowClear: true
         });
-    </script>
-        
+    
+        $('#residentSelect').change(function() {
+            // Get the data-filter attribute of the selected option
+            var selectedFilter = $(this).find('option:selected').data('filter');
+            // Update the value of the filter_input
+            $('#filter_input').val(selectedFilter);
+        });
+    });
+</script> 
 {% endblock %}

@@ -24,11 +24,16 @@ from django.conf.urls.static import static
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', views.home, name="home"),
-    path('', include("django.contrib.auth.urls")),
-    path('change-password/', PasswordChangeView.as_view(template_name='registration/change-password.html',success_url = '/'), name='change_password'),
+
+    path('login/', LoginView.as_view(template_name='registration/login.html'), name='login'),
+    path('change-password/', PasswordChangeView.as_view(template_name='registration/change-password.html', success_url = '/'), name='change_password'),
+    path('logout/', LogoutView.as_view(next_page='/'), name='logout'),
+
     path('residents/', views.residents, name="residents"),
     path('residents/<res_url>/',views.specific_resident, name="specific_resident"),
+    path('payments/', views.payments, name="payments"),
+    path('cash-and-cheques/', views.cash_and_cheques, name="cash_and_cheques"),
+
     path('upload/', views.upload, name="upload"),
     path('download/', views.download, name="download"),
-    path('payments/', views.payments, name="payments"),
 ]
