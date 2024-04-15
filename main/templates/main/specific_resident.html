@@ -41,7 +41,9 @@
 
 <!-- ======================================================================================================================================================================================== -->
 
-<div id="tentative-matches" class="row"></div> <!-- Tenative matches get appended here with Javascript -->
+<div id="tentative-matches" class="row">
+    <!-- Tenative matches get appended here with Javascript -->
+</div> 
 
 <h3>Unmatched invoices and payments for {{res.name}}</h3>
 <div class="row">
@@ -56,7 +58,6 @@
                         <th>Batch #</th>
                         <th>Date</th>
                         <th>Total</th>
-                        <!-- <th>Match</th> -->
                     </tr>
                 </thead>
                 <tbody>
@@ -66,9 +67,6 @@
                             <td>{{invoice.batch_number}}</td>
                             <td>{{invoice.date}}</td>
                             <td>{{invoice.str_total}}</td>
-                            <!-- <td>
-                                <input id="PaymentID-{{invoice.id}}" type="text" name="Payment ID - {{invoice.id}}" style="width: 60px">
-                            </td> -->
                         </tr>
                     {% endfor %}
                 </tbody>
@@ -89,7 +87,7 @@
             </thead>
             <tbody>
                 {% for payment in unmatched_payments %}
-                    <tr id="Payment-{{payment.id}}" ondragover="event.preventDefault()" ondrop="drop(event)">
+                    <tr id="Payment-{{payment.id}}" ondragover="event.preventDefault()" ondrop="handle_matching(event)">
                         <td>{{payment.id}}</td>
                         <td>{{payment.date}}</td>
                         <td>{{payment.description}}</td>
@@ -105,7 +103,7 @@
 <!-- ======================================================================================================================================================================================== -->
 
 <h3>Matched invoices and payments for {{res.name}}</h3>
-<div class="row" style="display: flex; flex-wrap: wrap;">
+<div class="row">
     <div class="column invoice">
         <table class="table table-bordered table-striped table-sm">
             <thead>
@@ -160,46 +158,101 @@
 {% block scripts %}
 {{ block.super }}
 <script>
-    function create_tentative_matching_table(matchContainer){
-        matchContainer.innerHTML = `
-        <div class="row" style="display: flex; flex-wrap: wrap;">
-            <div class="column" style="flex: 1; min-width: 40%; max-width: 40%;">
-                <table class="table table-bordered table-striped table-sm">
-                    <thead>
-                        <tr>
-                            <th>Invoice #</th>
-                            <th>Batch #</th>
-                            <th>Date</th>
-                            <th>Total</th>
-                        </tr>
-                    </thead>
-        `;
-    }
-
-    function drop(event) {
+    function handle_matching(event) {
         event.preventDefault();
         
-        const tentative_matches = document.getElementById('tentative-matches')
-        const invoice_id = event.dataTransfer.getData('text/plain');
-        const invoice_element = document.getElementById(invoice_id);
-        const payment_element = event.target.closest('tr');
-
-        const matchContainer = document.createElement('div');
-        if (tentative_matches.children.length == 0 ){
-
+        const tentative_matches = document.getElementById('tentative-matches');
+        let matches = tentative_matches.children.length
+        if ( matches === 0) {
+            const matchHeader = createMatchHeader();
+            tentative_matches.appendChild(matchHeader);
+            matches = 1;
         }
-        matchContainer.id = `tentative_match_${tentative_matches.children.length}`;
-        matchContainer.innerHTML = `
-            <table class="table table-bordered table-striped table-sm" id="invoices-to-match-${tentative_matches.children.length}">
-                <tbody id="invoice_body_${tentative_matches.children.length}">
-                </tbody>
-            </table>
-        `;
+
+        const invoice_id = event.dataTransfer.getData('text/plain');
+        const invoice_element = document.getElementById(invoice_id).closest('tr')
+        const payment_element = event.target.closest('tr')
+
+        if (payment_element.closest('div').id.includes('matched-payment')){
+            match = payment_element.closest('div').id.split("-")[2];
+            const invoice_tbody = document.getElementById(`matched-invoice-tbody-${match}`);
+            invoice_tbody.appendChild(invoice_element);
+        } else {
+            create_new_match(tentative_matches, matches, invoice_element, payment_element);
+        }
+    }
+
+    function create_new_match(tentative_matches, matches, invoice_element, payment_element){
+        const matchContainer = document.createElement('div');
+        matchContainer.className = `match-container-${matches}`;
+        matchContainer.style.border = '2px solid red';
+        matchContainer.style.display = 'flex';
+        matchContainer.style.marginBottom = '10px';
+
+        invoice_table_div = create_match_subtable(invoice_element, 'invoice', matches);
+        payment_table_div = create_match_subtable(payment_element, 'payment', matches);
+
+        matchContainer.appendChild(invoice_table_div);
+        matchContainer.appendChild(payment_table_div);
+
         tentative_matches.appendChild(matchContainer);
+    }
 
-        document.getElementById(`invoice_body_${tentative_matches.children.length -1}`).appendChild(invoice_element)
+    function create_match_subtable(row_element, invoice_or_payment, matches){
+        const div_element = document.createElement('div');
+        div_element.className = `column ${invoice_or_payment}`;
+        div_element.id = `matched-${invoice_or_payment}-${matches}`;
+        
+        const table_element = document.createElement('table');
+        table_element.className = 'table table-bordered table-striped table-sm';
+        
+        const tbody_element = document.createElement('tbody');
+        tbody_element.id = `matched-invoice-tbody-${matches}`;
 
-        payment_element.remove()
+        
+        tbody_element.appendChild(row_element);
+        table_element.appendChild(tbody_element);
+        div_element.appendChild(table_element);
+
+        return div_element;
+    }
+
+    function createMatchHeader() {
+        const header = document.createElement('div');
+        header.className = 'match-header';
+        header.innerHTML = `
+            <div class="column invoice">
+            <table class="table table-bordered table-striped table-sm">
+                <thead>
+                    <tr>
+                        <th>Invoice #</th>
+                        <th>Batch #</th>
+                        <th>Date</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+            </table>
+            </div>
+            <div class="column payment">
+            <table class="table table-striped table-bordered table-sm">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Date</th>
+                        <th>Description</th>
+                        <th>Amount</th>
+                        <th>Type</th>
+                    </tr>
+                </thead>
+            </table>
+            </div>
+        `;
+        header.style.display = 'flex';
+        header.style.justifyContent = 'space-between';
+        header.style.width = '100%';
+        header.style.marginBottom = '10px';
+
+        return header;
     }
 </script>
 {% endblock %}

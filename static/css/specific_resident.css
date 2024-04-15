@@ -1,31 +1,48 @@
 .row {
-  display: flex; 
-  flex-wrap: wrap;
-}
-.column{
-  flex: 1; 
-}
-.invoice{
-  min-width: 40%; 
-  max-width: 40%;
-}
-.payment{
-  min-width: 60%; 
-  max-width: 60%;
+    display: flex;
+    flex-wrap: wrap;
 }
 
-.left-table, .right-table {
-  display: flex;
-  flex-direction: column;
-  justify-content: center; /* Aligns items to the center vertically */
+.column {
+    flex: 1;
+}
+
+.invoice {
+    min-width: 40%;
+    max-width: 40%;
+}
+
+.payment {
+    min-width: 60%;
+    max-width: 60%;
 }
 
 .column table tbody tr:hover {
-  background-color: #e9ecef;
+    background-color: #e9ecef;
 }
 
 .draggables-header {
-  background-color: navy;
-  color: white;
-  font-weight: bold;
+    background-color: navy;
+    color: white;
+    font-weight: bold;
+}
+
+
+.match-container {
+    display: flex;
+    justify-content: space-between;
+    border: 2px solid red;
+    padding: 10px;
+    margin-bottom: 10px;
+    /* Space between each match */
+}
+
+.match-container .table {
+    margin-right: 10px;
+    width: calc(50% - 10px);
+}
+
+/* Remove margin from the last table to prevent overflow */
+.match-container .table:last-child {
+    margin-right: 10px;
 }
