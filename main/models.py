@@ -42,6 +42,10 @@ class payment(models.Model):
     @property
     def str_amount(self):
         return u'\u00A3' + f'{self.amount/100:.2f}'
+    
+    @property
+    def cleaned_description(self):
+        return self.description.split('FASTER PAYMENTS RECEIPT ')[-1] 
 
     def __str__(self):
         return self.description

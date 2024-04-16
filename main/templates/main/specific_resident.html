@@ -43,36 +43,36 @@
 
 <div id="tentative-matches" class="row">
     <!-- Tenative matches get appended here with Javascript -->
+    <form method="post" class="form-group">
+        {% csrf_token %}
+        <input type="hidden" name="form_type" value="Payment matching">
+        <!-- <button type="submit" class="btn btn-primary">Submit</button> -->
+    </form>
 </div> 
 
 <h3>Unmatched invoices and payments for {{res.name}}</h3>
 <div class="row">
     <div class="column invoice">
-        <form method="post" class="form-group">
-            {% csrf_token %}
-            <input type="hidden" name="form_type" value="Payment matching">
-            <table class="table table-bordered table-striped table-sm" id="invoices-to-match">
-                <thead>
-                    <tr>
-                        <th>Invoice #</th>
-                        <th>Batch #</th>
-                        <th>Date</th>
-                        <th>Total</th>
+        <table class="table table-bordered table-striped table-sm" id="invoices-to-match">
+            <thead>
+                <tr>
+                    <th>Invoice #</th>
+                    <th>Batch #</th>
+                    <th>Date</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for invoice in unmatched_invoices %}
+                    <tr id="Invoice-{{invoice.id}}" draggable="true" ondragstart="event.dataTransfer.setData('text/plain', event.target.id)">
+                        <td>{{invoice.invoice_number}}</td>
+                        <td>{{invoice.batch_number}}</td>
+                        <td>{{invoice.date}}</td>
+                        <td>{{invoice.str_total}}</td>
                     </tr>
-                </thead>
-                <tbody>
-                    {% for invoice in unmatched_invoices %}
-                        <tr id="Invoice-{{invoice.id}}" draggable="true" ondragstart="event.dataTransfer.setData('text/plain', event.target.id)">
-                            <td>{{invoice.invoice_number}}</td>
-                            <td>{{invoice.batch_number}}</td>
-                            <td>{{invoice.date}}</td>
-                            <td>{{invoice.str_total}}</td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            <button type="submit" class="btn btn-primary">Submit</button>
-        </form>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
     <div class="column payment">
         <table class="table table-striped table-bordered table-sm" id="payments-to-match">
@@ -90,7 +90,7 @@
                     <tr id="Payment-{{payment.id}}" ondragover="event.preventDefault()" ondrop="handle_matching(event)">
                         <td>{{payment.id}}</td>
                         <td>{{payment.date}}</td>
-                        <td>{{payment.description}}</td>
+                        <td>{{payment.cleaned_description}}</td>
                         <td>{{payment.str_amount}}</td>
                         <td>{{payment.type}}</td>
                     </tr>
@@ -142,7 +142,7 @@
                     <tr>
                         <td>{{payment.id}}</td>
                         <td>{{payment.date}}</td>
-                        <td>{{payment.description}}</td>
+                        <td>{{payment.cleaned_description}}</td>
                         <td>{{payment.str_amount}}</td>
                         <td>{{payment.type}}</td>
                     </tr>
@@ -162,9 +162,10 @@
         event.preventDefault();
         
         const tentative_matches = document.getElementById('tentative-matches');
-        let matches = tentative_matches.children.length
+        var matches = tentative_matches.children.length - 1; // -1 because of the form
+        
         if ( matches === 0) {
-            const matchHeader = createMatchHeader();
+            const matchHeader = createMatchHeader_v2();
             tentative_matches.appendChild(matchHeader);
             matches = 1;
         }
@@ -184,10 +185,8 @@
 
     function create_new_match(tentative_matches, matches, invoice_element, payment_element){
         const matchContainer = document.createElement('div');
-        matchContainer.className = `match-container-${matches}`;
-        matchContainer.style.border = '2px solid red';
-        matchContainer.style.display = 'flex';
-        matchContainer.style.marginBottom = '10px';
+        matchContainer.className = 'match-container';
+        matchContainer.id = `tentative-match-${matches}`
 
         invoice_table_div = create_match_subtable(invoice_element, 'invoice', matches);
         payment_table_div = create_match_subtable(payment_element, 'payment', matches);
@@ -215,6 +214,39 @@
         div_element.appendChild(table_element);
 
         return div_element;
+    }
+
+    function copy_table_header(invoice_or_payment) {
+        const col_element = document.createElement('div');
+        col_element.className = 'column invoice';
+
+        const table = document.getElementById(`${invoice_or_payment}s-to-match`);
+        
+        var widths = [];
+        var table_headers = table.getElementsByTagName('th');
+        Array.from(table_headers).forEach((th) => {
+            widths.push(th.offsetWidth);
+        });
+        console.log(widths);
+
+        const new_table = table.cloneNode(true)
+        new_table.querySelector('tbody').remove();
+
+        // table_headers = new_table.getElementsByTagName('th');
+        // Array.from(table_headers).forEach((th, index) => {
+        //     th.style.width = `${widths[index]}px`;
+        // });
+        
+        col_element.appendChild(new_table);
+        return col_element;
+    }
+
+    function createMatchHeader_v2() {
+        const header = document.createElement('div');
+        header.className = 'match-header';
+        header.appendChild(copy_table_header('invoice'));
+        header.appendChild(copy_table_header('payment'));
+        return header;
     }
 
     function createMatchHeader() {
@@ -247,11 +279,6 @@
             </table>
             </div>
         `;
-        header.style.display = 'flex';
-        header.style.justifyContent = 'space-between';
-        header.style.width = '100%';
-        header.style.marginBottom = '10px';
-
         return header;
     }
 </script>
