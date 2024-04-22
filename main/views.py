@@ -63,15 +63,29 @@ def payments(request):
         return render(request, "main/payments.html", data)
     else:
         return redirect('/login')
-    
+
+def str_total(total):
+    return u'\u00A3' + f'{total/100:,.2f}'
+
+def compile_resident_table(residents):
+    resident_table = []
+    resident_list = list(residents)
+    resident_list.sort(key = lambda x: x.total_owed(), reverse=True)
+    for res in resident_list:
+        resident_table.append(
+            [res, res.len_invoices(), str_total(res.total_invoiced()), res.len_payments(), str_total(res.total_payed()), str_total(res.total_owed())]
+        )
+    return resident_table
+
 def residents(request):
     if request.user.is_authenticated:
         residents = resident.objects.exclude(first='Council').exclude(first='Cheques').order_by('last')
         data = {
-            'current_residents' : residents.filter(current=True, private=False),
-            'private_residents' : residents.filter(current=True, private=True),
+            'resident_info_table':  compile_resident_table(residents.filter(current=True, private=False)),
+            'private_resident_info_table': compile_resident_table(residents.filter(current=True, private=True)),
             'former_residents' : residents.filter(current=False),
         }
+
         if request.method=='POST':
             form = ResidentForm(request.POST)
             if form.is_valid():
@@ -79,7 +93,8 @@ def residents(request):
                 return redirect('/residents')
         else:
             form = ResidentForm()
-        data['form']=form
+        data['resident_form']=form
+
         return render(request, "main/residents.html", data)
     else:
         return redirect('/login')

@@ -19,6 +19,17 @@ class resident(models.Model):
     @property
     def url(self):
         return self.name.replace(' ','-')
+    
+    def total_invoiced(self):
+        return sum([invoice_.total for invoice_ in self.invoice_set.filter(obsolete=False)])
+    def total_payed(self):
+        return sum([payment_.amount for payment_ in self.payment_set.all()])
+    def total_owed(self):
+        return self.total_invoiced() - self.total_payed()
+    def len_invoices(self):
+        return len(self.invoice_set.filter(obsolete=False))
+    def len_payments(self):
+        return len(self.payment_set.all())
 
     def __str__(self):
         return self.name
