@@ -6,39 +6,80 @@ Residents page
 {% endblock %}
 
 {% block content %}
-    <div class="row">
-        <div class="column">
-            <h3>Current residents with personal contributions</h3>
-            <br/>
-            <div class="list-group">
-                {% for res in current_residents %}
-                    <a href="/residents/{{res.url}}" style="width: 300px" class="list-group-item">{{res.name}}</a>
-                {% endfor %}
-            </div>
-        </div>
-        <div class="column">
-            <h3>Current private residents</h3>
-            <br/>
-            <div class="list-group">
-                {% for res in private_residents %}
-                    <a href="/residents/{{res.url}}" style="width: 300px" class="list-group-item">{{res.name}}</a>
-                {% endfor %}
-            </div>
 
-            <br/><p>Fill in the form below to add a new resident.</p>
-            <form method="post" class="form-group">
-                {% csrf_token %}
-                {{form|crispy}}
-                <button type="submit" class="btn btn-primary">Submit</button>
-            </form>
-        </div>
-    </div>
-    <h3>Former residents</h3>
-    <br/>
-    <div class="list-group">
-        {% for res in former_residents %}
-            <a href="/residents/{{res.url}}" style="width: 300px" class="list-group-item">{{res.name}}</a>
+<h3 style="margin-bottom: 20px">Resident dashboard</h3>
+<table class="table table-bordered table-striped table-sm" id="resident-info">
+    <thead>
+        <tr>
+            <th>Resident</th>
+            <th>Invoices Issued</th>
+            <th>Invoice Total</th>
+            <th>Payments Received</th>
+            <th>Total Payed</th>
+            <th>Total Owed</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr style="background-color: darkgrey"><td colspan="6" class="title"><b>Current residents with personal contributions</b></td></tr>
+        {% for res, invoice_no, invoice_total, payment_no, payment_total, owed in resident_info_table %}
+            <tr id="{{res.name}}">
+                <td><a href="/residents/{{res.url}}">{{res.name}}</a></td>
+                <td>{{invoice_no}}</td>
+                <td>{{invoice_total}}</td>
+                <td>{{payment_no}}</td>
+                <td>{{payment_total}}</td>
+                <td>{{owed}}</td>
+            </tr>
         {% endfor %}
-    </div>
+        <tr style="background-color: darkgrey"><td colspan="6" class="title"><b>Current private residents</b></td></tr>
+        {% for res, invoice_no, invoice_total, payment_no, payment_total, owed in private_resident_info_table %}
+            <tr id="{{res.name}}">
+                <td><a href="/residents/{{res.url}}">{{res.name}}</a></td>
+                <td>{{invoice_no}}</td>
+                <td>{{invoice_total}}</td>
+                <td>{{payment_no}}</td>
+                <td>{{payment_total}}</td>
+                <td>{{owed}}</td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<p>Fill in the form below to add a new resident.</p>
+<!-- <form method="post" class="form-group">
+    {% csrf_token %}
+    {{form|crispy}}
+    <button type="submit" class="btn btn-primary">Submit</button>
+</form> -->
+<form method="post" class="form-group">
+    {% csrf_token %}
+    <input type="hidden" name="form_type" value="Updating resident info">
+    <div class="container">
+        <div class="row">
+            <div class="col-sm-1.5"><b>{{resident_form.title.label_tag}}</b>  {{resident_form.title}}</div>
+            <div class="col-sm-3"><b>{{resident_form.first.label_tag}}</b>  {{resident_form.first}}</div>
+            <div class="col-sm-2.5"><b>{{resident_form.last.label_tag}}</b>  {{resident_form.last}}</div>
+        </div>
+        <div class="row">
+            <div class="col-sm-2"><b>{{resident_form.current.label_tag}}</b>  {{resident_form.current}}</div>
+            <div class="col-sm-2"><b>{{resident_form.private.label_tag}}</b>  {{resident_form.private}}</div>
+            {% if res.private %}
+                <div class="col-sm-3"><b>{{resident_form.private_rate.label_tag}}</b>  {{resident_form.private_rate}}</div>
+            {% endif %}
+        </div>
+        <div class="row">
+            <div class="col-sm"><b>{{resident_form.filters.label_tag}}</b>  {{resident_form.filters}}</div>
+            <button type="submit" class="col-sm-4 btn btn-primary">Add new resident</button>
+        </div>
+    </div>    
+</form>
+
+<h3>Former residents</h3>
+<br/>
+<div class="list-group">
+    {% for res in former_residents %}
+        <a href="/residents/{{res.url}}" style="width: 300px" class="list-group-item">{{res.name}}</a>
+    {% endfor %}
+</div>
 
 {% endblock %}
