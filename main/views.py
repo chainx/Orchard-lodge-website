@@ -88,33 +88,33 @@ def specific_resident(request, res_url):
     if request.user.is_authenticated:
         name=res_url.split('-')
         res = resident.objects.get(title=name[0], first=' '.join(name[1:-1]),last=name[-1])
+        
         data = {
             'res':res,
-            'matched_invoices':res.invoice_set.filter(obsolete=False, matched=True).order_by('year', 'batch_number').reverse(),
-            'matched_payments':res.payment_set.filter(matched=True).order_by('date').reverse(),
             'unmatched_invoices':res.invoice_set.filter(obsolete=False, matched=False).order_by('year', 'batch_number').reverse(),
             'unmatched_payments':res.payment_set.filter(matched=False).order_by('date').reverse(),
             'resident_form': ResidentForm(instance=res),
         }
+        data['accepted_matches'] = []
+        for index, payment in enumerate(res.payment_set.filter(matched=True).order_by('date').reverse()):
+            data['accepted_matches'].append((index, payment, payment.invoice_set.all()))
 
         if request.method=='POST' and request.POST['form_type']=='Updating resident info':
             form = ResidentForm(request.POST, instance=res)
             if form.is_valid():
                 data['resident_form'] = form
                 form.save()
-                return render(request, "main/specific_resident.html", data)
 
         if request.method=='POST' and request.POST['form_type']=='Payment matching':
-            payments_matched = {int(key.split(' - ')[1]): int(value) for key, value in request.POST.items() if 'Payment ID' in key and value != ''}
-            for invoice_id, payment_id in payments_matched.items():
-                invoice_ = invoice.objects.get(id=invoice_id)
-                payments = payment.objects.filter(id=payment_id)
-
-                invoice_.matched = True
-                invoice_.save()
-                payments.update(matched=True)
-                invoice_.Payment.set(payments)
-                return render(request, "main/specific_resident.html", data)
+            payments_matched = {int(key.split(' - ')[1]): value.split('-') for key, value in request.POST.items() if 'Payment ID' in key and value != ''}
+            for payment_id, invoice_ids in payments_matched.items():
+                payment_ = payment.objects.get(id=payment_id)
+                for invoice_ in invoice.objects.filter(id__in=invoice_ids):
+                    invoice_.matched = True
+                    payment_.matched = True
+                    invoice_.Payment.add(payment_)
+                    invoice_.save()
+                    payment_.save()
 
         return render(request, "main/specific_resident.html", data)
     else:
