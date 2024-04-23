@@ -69,8 +69,7 @@ def str_total(total):
 
 def compile_resident_table(residents):
     resident_table = []
-    resident_list = list(residents)
-    resident_list.sort(key = lambda x: x.total_owed(), reverse=True)
+    resident_list = sorted(list(residents), key = lambda x: x.total_owed(), reverse=True)
     for res in resident_list:
         resident_table.append(
             [res, res.len_invoices(), str_total(res.total_invoiced()), res.len_payments(), str_total(res.total_payed()), str_total(res.total_owed())]
