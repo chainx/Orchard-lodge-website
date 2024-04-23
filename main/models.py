@@ -20,7 +20,7 @@ class resident(models.Model):
     
     @property
     def url(self):
-        return self.name.replace(' ','-')
+        return '-'.join([self.title, self.first.replace(' ', '_'), self.last.replace(' ', '_')])
     
     def total_invoiced(self):
         return sum([invoice_.total for invoice_ in self.invoice_set.filter(obsolete=False)])
