@@ -2,7 +2,7 @@ import os
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from datetime import datetime
+from datetime import datetime, date
 import shutil
 import json
 import string
@@ -37,18 +37,31 @@ options.set_preference("pdfjs.disabled", True)
 
 def get_remittance_advice(period_id=None, download_csv=True, download_pdf=True):	   
     driver = webdriver.Firefox(options=options, service=Service(GeckoDriverManager().install()))
-
     SEFTON_LOGIN_DETAILS = sefton_login_details.objects.get(id=1)
     driver = login(driver, SEFTON_LOGIN_DETAILS.email, SEFTON_LOGIN_DETAILS.password, SEFTON_LOGIN_DETAILS.passcode)
     period_range = download_sefton_statements(driver, period_id, download_csv, download_pdf)
+    driver.quit()
 
     filename = file_manipulation(period_range)
     return filename
 
+def get_historical_remittance_advice(min_date, max_date):
+    driver = webdriver.Firefox(options=options, service=Service(GeckoDriverManager().install()))
+    SEFTON_LOGIN_DETAILS = sefton_login_details.objects.get(id=1)
+    driver = login(driver, SEFTON_LOGIN_DETAILS.email, SEFTON_LOGIN_DETAILS.password, SEFTON_LOGIN_DETAILS.passcode)
+    
+    period_ids = download_sefton_statements(driver, min_date=min_date, max_date=max_date)
+    for period_id in period_ids:
+        period_range = download_sefton_statements(driver, period_id)
+        file_manipulation(period_range)
+    driver.quit()
+
 def file_manipulation(period_range):
-    year = datetime.now().strftime("%Y") # Folder structure is based on current date, not date of report
+    year = period_range.split(' - ')[1].split('/')[-1]
     period_range = ' - '.join([datetime.strptime(date,"%d/%m/%Y").strftime("%d %B") for date in period_range.split(' - ')])
-    file_number = len(os.listdir(os.path.join(settings.MEDIA_REMITTANCE, year))) // 2 + 1
+    dir = os.path.join(settings.MEDIA_REMITTANCE, year)
+    os.makedirs(dir, exist_ok=True)
+    file_number = len(os.listdir(dir)) // 2 + 1
     filename = f'{file_number}. {period_range}'
     shutil.move(os.path.join(settings.MEDIA_REMITTANCE, 'report_export.csv'), os.path.join(settings.MEDIA_REMITTANCE, year, filename+'.csv'))
     shutil.move(os.path.join(settings.MEDIA_REMITTANCE, 'ActiveReports.PDF'), os.path.join(settings.MEDIA_REMITTANCE, year, filename+'.PDF'))
@@ -80,17 +93,19 @@ def login(driver, email, password, passcode):
 
     return driver
 
-def download_sefton_statements(driver, period_id, download_csv, download_pdf):
+def download_sefton_statements(driver, period_id=None, download_csv=True, download_pdf=True, min_date=None, max_date=None):
     driver.get(base_url+'report.aspx?report=404001')
 
     contract_selection = Select(driver.find_element(By.ID, 'ContentPlaceHolderMain_repeaterParams_ContractID_0'))
     contract_selection.select_by_visible_text('Orchard Lodge Care Home')
 
     period_selection_element = driver.find_element(By.ID, "ContentPlaceHolderMain_repeaterParams_ContractPaymentPeriodID_2")
-    period_range = period_selection_element.find_elements(By.TAG_NAME, 'option')[0].text
+    period_selection = Select(period_selection_element)
     if period_id:
-        period_selection = Select(period_selection_element)
         period_selection.select_by_value(period_id)
+    if min_date or max_date:
+        return [option.get_attribute('value') for option in period_selection.options if filter_options(option, min_date, max_date)][::-1]
+    period_range = period_selection.first_selected_option.text
 
     if download_csv:
         download_csv_button = driver.find_element(By.ID, 'ContentPlaceHolderMain_btnDownload')
@@ -111,8 +126,16 @@ def download_sefton_statements(driver, period_id, download_csv, download_pdf):
         except:
             pass
     
-    driver.quit()
     return period_range
+
+def filter_options(option, min_date, max_date):
+    keep = True
+    end_date = datetime.strptime(option.text.split(' - ')[1], '%d/%m/%Y').date()
+    if min_date:
+        keep = keep and end_date >= min_date
+    if max_date:
+        keep = keep and end_date <= max_date
+    return keep
 
 def update_password_from_webpage(driver, password):
     new_password = generate_new_password()
@@ -151,4 +174,5 @@ def generate_new_password():
     return new_password
 
 if __name__ == "__main__":
-	   get_remittance_advice()
+    get_remittance_advice()
+    # get_historical_remittance_advice(date(2017,12,31), date(2022,1,1))
