@@ -21,7 +21,7 @@ def main():
     latest_remittance = get_latest(settings.MEDIA_REMITTANCE)
     invoices, batch_number, folder = get_invoice_data_from_sefton_csv(latest_remittance)
 
-    write_invoices_and_update_db(invoices, batch_number, folder)
+    # write_invoices_and_update_db(invoices, batch_number, folder)
 
 #==============================================================================================================================================================================
 
@@ -67,16 +67,39 @@ def get_invoice_data_from_sefton_csv(filename): # Obtains data pertinent to writ
 
     invoice_number = max(invoice.objects.values_list('invoice_number', flat=True))
 
-    df = pd.read_csv(filename).fillna('') # if ServiceTotalLabel != 'Total for Orchard Lodge Care Home' then it may contain a note from Sefton
+    try:
+        df = pd.read_csv(filename)
+    except:
+        df = pd.read_csv(filename, encoding='ISO-8859-1')
+    
+    df = df.fillna('')# if ServiceTotalLabel != 'Total for Orchard Lodge Care Home' then it may contain a note from Sefton
     payment_period = df.iloc[0]['ReportContext'].split('Payment Period from ')[1]
 
+    df['FormattedName'] = df.apply(
+        lambda row: row['Person'].split()[0] + ',' + ', '.join(row['ClientName'].split(' (')[0].split(',')[::-1]),
+        axis=1
+    )
+    df['Sefton ID'] = df['ClientName'].apply(lambda x: x.split(' (')[1][:-1])
+
     invoices=[]
-    for res in df.Person.unique():
-        filt = (df['Person']==res) & (df['IsIncome']==1) # Filter entries for each resident which are incomes (costs are paid by Sefton)
+    for index, df_row in df[['FormattedName', 'Sefton ID']].drop_duplicates().iterrows():
+        res_name, sefton_id = df_row['FormattedName'], df_row['Sefton ID']
+        
+        # Create new resident if an existing resident isn't in the database
+        # WARNING: It's possible (but rare) that a private resident goes non-private and hasn't yet been assigned a sefton ID!
+        res, is_new = resident.objects.get_or_create(sefton_id=sefton_id)
+        if is_new:
+            res.title, res.first, res.last = res_name.split(', ')
+            res.current, res.private = True, False
+            res.save()            
+
+        filt = (df['Sefton ID']==sefton_id) & (df['IsIncome']==1) # Filter entries for each resident which are incomes (costs are paid by Sefton)
         if not df.loc[filt].empty:
+            
             invoice_number = "%05d" % (int(invoice_number)+1)
+
             row = {
-                'Resident' : res,
+                'Resident': res,
                 'date' : date,
                 'sub_items' : df.loc[filt][['Amount', 'PaymentItemDates', 'AdjustmentLabel']],
                 'total' : int(df.loc[filt]['Amount'].sum()*100), # Amounts are stored in pennies in the database
@@ -89,7 +112,7 @@ def get_invoice_data_from_sefton_csv(filename): # Obtains data pertinent to writ
     for res in residents:
         invoice_number = "%05d" % (int(invoice_number)+1)
         row = {
-            'Resident' : res.name,
+            'Resident' : res,
             'date' : date,
             'sub_items' : pd.DataFrame({'Amount': res.private_rate, 'PaymentItemDates' : payment_period, 'AdjustmentLabel' : ''}, index=[0]),
             'total' : res.private_rate,
@@ -106,7 +129,6 @@ def extract_invoice_args_for_db(invoice_data, batch_number, folder):
     name = invoice_data['Resident'].split()
     invoice_data['filename'] = folder+invoice_data['invoice_number']+' - '+invoice_data['Resident']+'.docx'
     invoice_data['batch_number'] = batch_number
-    invoice_data['Resident'] = resident.objects.get_or_create(title=name[0], first=' '.join(name[1:-1]), last=name[-1])[0]
     invoice_data['date'] = datetime.strptime(invoice_data['date'],'%d %B %Y').strftime('%Y-%m-%d')
     invoice_data['year'] = datetime.strptime(invoice_data['date'],'%Y-%m-%d').year
     invoice_data['total'] *= 100 

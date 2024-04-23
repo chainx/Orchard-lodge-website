@@ -5,10 +5,12 @@ class resident(models.Model):
     title = models.CharField(max_length=8)
     first = models.CharField(max_length=32)
     last = models.CharField(max_length=32)
+    sefton_id = models.CharField(max_length=32, blank=True, null=True)
     current = models.BooleanField(default=False)
     private = models.BooleanField(default=False)
-    private_rate = models.IntegerField(default=0,blank=True, null=True)
-    filters = models.CharField(max_length=256,default='',blank=True, null=True)
+    private_rate = models.IntegerField(default=0, blank=True, null=True)
+    filters = models.CharField(max_length=256, default='', blank=True, null=True)
+    leave_date = models.DateField(blank=True, null=True)
 
     @property
     def name(self):
