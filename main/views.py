@@ -100,8 +100,8 @@ def residents(request):
 
 def specific_resident(request, res_url):
     if request.user.is_authenticated:
-        name=res_url.split('-')
-        res = resident.objects.get(title=name[0], first=' '.join(name[1:-1]),last=name[-1])
+        title, first, last = res_url.split('-')
+        res = resident.objects.get(title=title, first=first.replace('_', ' '), last=last.replace('_', ' '))
         
         data = {
             'res':res,
@@ -110,8 +110,8 @@ def specific_resident(request, res_url):
             'resident_form': ResidentForm(instance=res),
         }
         data['accepted_matches'] = []
-        for index, payment in enumerate(res.payment_set.filter(matched=True).order_by('date').reverse()):
-            data['accepted_matches'].append((index, payment, payment.invoice_set.all()))
+        for index, payment_ in enumerate(res.payment_set.filter(matched=True).order_by('date').reverse()):
+            data['accepted_matches'].append((index, payment_, payment_.invoice_set.all()))
 
         if request.method=='POST' and request.POST['form_type']=='Updating resident info':
             form = ResidentForm(request.POST, instance=res)
