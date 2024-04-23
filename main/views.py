@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import datetime, date
 import mimetypes
 from zipfile import ZipFile
 
@@ -67,13 +67,15 @@ def payments(request):
 def str_total(total):
     return u'\u00A3' + f'{total/100:,.2f}'
 
-def compile_resident_table(residents):
+def compile_resident_table(residents, include_date_left=False):
     resident_table = []
     resident_list = sorted(list(residents), key = lambda x: x.total_owed(), reverse=True)
     for res in resident_list:
-        resident_table.append(
-            [res, res.len_invoices(), str_total(res.total_invoiced()), res.len_payments(), str_total(res.total_payed()), str_total(res.total_owed())]
-        )
+        if res.len_invoices()>0:
+            row = [res, res.len_invoices(), str_total(res.total_invoiced()), res.len_payments(), str_total(res.total_payed()), str_total(res.total_owed())]
+            if include_date_left:
+                row.append(res.leave_date)
+            resident_table.append(row)
     return resident_table
 
 def residents(request):
@@ -82,6 +84,7 @@ def residents(request):
         data = {
             'resident_info_table':  compile_resident_table(residents.filter(current=True, private=False)),
             'private_resident_info_table': compile_resident_table(residents.filter(current=True, private=True)),
+            'recent_resident_info_table': compile_resident_table(residents.filter(leave_date__gt=date(2023,1,1)), include_date_left=True),
             'former_residents' : residents.filter(current=False),
         }
 

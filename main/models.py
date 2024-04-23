@@ -1,5 +1,10 @@
+from datetime import date
+
 from django.db import models
 from django.core.validators import MinLengthValidator
+
+# For the purposes of the resident dashboard, invoices and payments before the CUT_OFF date aren't considered
+CUTOFF_DATE = date(2018, 1, 1)
 
 class resident(models.Model):
     title = models.CharField(max_length=8)
@@ -23,15 +28,15 @@ class resident(models.Model):
         return '-'.join([self.title, self.first.replace(' ', '_'), self.last.replace(' ', '_')])
     
     def total_invoiced(self):
-        return sum([invoice_.total for invoice_ in self.invoice_set.filter(obsolete=False)])
+        return sum([invoice_.total for invoice_ in self.invoice_set.filter(date__gte=CUTOFF_DATE, obsolete=False)])
     def total_payed(self):
-        return sum([payment_.amount for payment_ in self.payment_set.all()])
+        return sum([payment_.amount for payment_ in self.payment_set.filter(date__gte=CUTOFF_DATE)])
     def total_owed(self):
         return self.total_invoiced() - self.total_payed()
     def len_invoices(self):
-        return len(self.invoice_set.filter(obsolete=False))
+        return len(self.invoice_set.filter(date__gte=CUTOFF_DATE, obsolete=False))
     def len_payments(self):
-        return len(self.payment_set.all())
+        return len(self.payment_set.filter(date__gte=CUTOFF_DATE))
 
     def __str__(self):
         return self.name

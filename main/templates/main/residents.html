@@ -74,12 +74,33 @@ Residents page
     </div>    
 </form>
 
-<h3>Former residents</h3>
-<br/>
-<div class="list-group">
-    {% for res in former_residents %}
-        <a href="/residents/{{res.url}}" style="width: 300px" class="list-group-item">{{res.name}}</a>
-    {% endfor %}
-</div>
+<h3 style="margin-bottom: 20px">Dashboard for recently left residents</h3>
+<table class="table table-bordered table-striped table-sm" id="resident-info">
+    <thead>
+        <tr>
+            <th>Resident</th>
+            <th>Invoices Issued</th>
+            <th>Invoice Total</th>
+            <th>Payments Received</th>
+            <th>Total Payed</th>
+            <th>Total Owed</th>
+            <th>Date Left</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr style="background-color: darkgrey"><td colspan="7" class="title"><b>Recently left residents</b></td></tr>
+        {% for res, invoice_no, invoice_total, payment_no, payment_total, owed, date_left in recent_resident_info_table %}
+            <tr id="{{res.name}}">
+                <td><a href="/residents/{{res.url}}">{{res.name}}</a></td>
+                <td>{{invoice_no}}</td>
+                <td>{{invoice_total}}</td>
+                <td>{{payment_no}}</td>
+                <td>{{payment_total}}</td>
+                <td>{{owed}}</td>
+                <td>{{date_left}}</td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
 
 {% endblock %}
