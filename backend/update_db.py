@@ -21,12 +21,6 @@ def add_year_and_batch_no_to_invoice_table():
         inv.year = str(inv.filename).split('/')[1]
         inv.save()
 
-def use_existing_payment_filters():
-    for res in resident.objects.all():
-        res_filters = res.filters.split(';') if res.filters else []
-        for res_filter in res_filters:
-            match_payments_to_resident(res.id, res_filter)
-
 def merge_residents(id_old, id_new):
     invoice.objects.filter(Resident_id=id_old).update(Resident_id=id_new)
     payment.objects.filter(Resident_id=id_old).update(Resident_id=id_new)
@@ -45,7 +39,6 @@ def update_client_info_from_sefton_csv(client_info, year, filename):
     end_date = datetime.strptime(payment_period.split(' to ')[1], '%d/%m/%Y').date()
 
     clients = df[['ClientName', 'Person']].drop_duplicates()
-    # clients['Name'] = clients[['ClientName', 'Person']].apply(lambda x, y: y.split()[0]+', '.join(x.split(' (')[0].split(',')[::-1]))
     clients['Name'] = clients.apply(
         lambda row: row['Person'].split()[0] + ',' + ', '.join(row['ClientName'].split(' (')[0].split(',')[::-1]),
         axis=1
@@ -83,18 +76,13 @@ def add_ID_and_leave_date():
     for row in client_info.iterrows():
         title, first, last = row[1].iloc[0].split(', ')
 
-        # alt_name = ' '.join(row[1].iloc[0].split(', '))
-        # alt_first, alt_last = ' '.join(alt_name.split()[1:-1]), alt_name.split()[-1]
-        # if first != alt_first or last != alt_last and resident.objects.filter(Q(title=title, first=alt_first, last=alt_last)):
-        #     print(first, alt_first, last, alt_last)
-
         query |= Q(title=title, first=first, last=last) # Obtain all residents not present before 2018
 
         res = resident.objects.get_or_create(title=title, first=first, last=last)[0]
         res.sefton_id = row[1].iloc[1]
         if row[1].iloc[2] != recent_date:
             res.leave_date = row[1].iloc[2]
-        # res.save()
+        res.save()
 
     #Set leave date to 1 AD for all residents not present before 2018
     resident.objects.filter(~query).update(leave_date=date(1,1,1))
@@ -103,6 +91,4 @@ if __name__=='__main__':
     # add_year_and_batch_no_to_invoice_table()
     # use_existing_payment_filters()
     # merge_residents(61, 96)
-    # merge_residents(98, 91)
-    # merge_residents(26, 22)
     add_ID_and_leave_date()
