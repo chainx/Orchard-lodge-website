@@ -28,45 +28,68 @@ def main():
     check_santander_file_consistent(excel_payments)
     excel_payments.to_excel(santander_file, index=False)
 
-    update_db(downloaded_payments, from_date)
+    new_payments = get_new_payments(excel_payments)
+    print(new_payments)
+    add_payments_to_db(new_payments, from_date)
+    match_payments_wtih_existing_payment_filters()
 
-def match_payments_to_resident(resident_id, filters):
-    for filter in filters.split(';'):
-        matching_payments = payment.objects.filter(description__icontains=filter).exclude(Resident_id=resident_id)
-        already_matched_payments = matching_payments.filter(Resident_id__isnull=False)
-        if already_matched_payments:
-            other_resident_matches = set(already_matched_payments.values_list('Resident_id', flat=True))
-            return other_resident_matches
-        matching_payments.update(Resident_id=resident_id)
-    resident.objects.filter(id=resident_id).update(filters=filters.lower())
+# ============================================================   UPDATE DB   ================================================================================
 
-def update_db(downloaded_payments, from_date):
-    new_payments = get_new_payments(downloaded_payments, from_date)
+
+def add_payments_to_db(new_payments, from_date, bank='Santander'):
     for index, payment_ in new_payments[::-1].iterrows():
-        payment(**extract_payment_kwargs_for_db(payment_, 'Santander')).save()
+        payment(**extract_payment_kwargs_for_db(payment_, bank)).save()
 
 def extract_payment_kwargs_for_db(payment, bank):
     kwargs = {
         'date': payment.date,
         'description': payment.description,
-        'amount': convert_to_pennies(payment.amount),
+        'amount': payment.amount,
         'matched': False,
         'type' : bank,
     }
     return kwargs
 
-def get_new_payments(downloaded_payments, from_date):
-    downloaded_payments = downloaded_payments[downloaded_payments['Money in'].notnull()][['Date', 'Description', 'Money in']]
-    downloaded_payments['Date'] = pd.to_datetime(downloaded_payments['Date'], format='%d/%m/%Y').dt.date
-    downloaded_payments = downloaded_payments.rename(columns=excel_to_db_cols )
+def get_new_payments(excel_payments, bank='Santander'):
+    # Filter for payments and reformat so that schema matches that from DB
+    excel_payments = excel_payments[excel_payments['Money in'].notnull()]
+    excel_payments = excel_payments[excel_to_db_cols.keys()]
+    excel_payments['Money in'] = excel_payments['Money in'].apply(convert_to_pennies)
+    excel_payments['Date'] = pd.to_datetime(excel_payments['Date'], format='%d/%m/%Y').dt.date
+    excel_payments = excel_payments.rename(columns=excel_to_db_cols )
 
-    payments_db = payment.objects.filter(date=from_date)
-    if not payments_db.values(): return downloaded_payments # Handles case where payments_db is empty
-    payments_db = pd.DataFrame(list(payments_db.values()))[['date', 'description', 'amount']]
+    db_payments = payment.objects.filter(type=bank)
+    if not db_payments.values(): return excel_payments # Handles case where db_payments is empty
+    db_payments = pd.DataFrame(list(db_payments.values()))
+    db_payments = db_payments[excel_to_db_cols.values()].astype('object') # Project columns and convert col types to match excel schema
 
-    match_cols = ['date', 'description', 'amount']
-    outer_join = payments_db.merge(downloaded_payments, on=match_cols, how='outer', indicator=True)
+    match_cols = list(excel_to_db_cols.values())
+    outer_join = db_payments.merge(excel_payments, on=match_cols, how='outer', indicator=True)
+    if not outer_join[outer_join._merge=='left_only'].empty:
+        raise ValueError(f'There are {bank} payments in the DB with no matching payment in the local {bank} Excel file!')
+    
     return outer_join[outer_join._merge=='right_only'].drop('_merge', axis='columns')
+
+# ============================================================   MATCH PAYMETNS TO RESIDENTS   ================================================================================
+
+def match_payments_wtih_existing_payment_filters(verbose=True):
+    for res in resident.objects.all():
+        res_filters = res.filters.split(';') if res.filters else []
+        for res_filter in res_filters:
+            match_payments_to_resident(res.id, res_filters, res.name, verbose)
+
+def match_payments_to_resident(resident_id, filters, resident_name, verbose=True):
+    for filter in filters:
+        matching_payments = payment.objects.filter(description__icontains=filter).exclude(Resident_id=resident_id)
+        already_matched_payments = matching_payments.filter(Resident_id__isnull=False)
+        if already_matched_payments:
+            other_resident_matches = set(already_matched_payments.values_list('Resident_id', flat=True))
+            error_msg = f'The following payments have been matched to {resident_name}:\n\n{already_matched_payments}\n\n'
+            error_msg += f'But these payments have already been matched to the following residents:\n\n{other_resident_matches}'
+            raise ValueError(error_msg)
+        if verbose and matching_payments:
+            print(f'The following payments will be matched to {resident_name}:\n\n{matching_payments}')
+        matching_payments.update(Resident_id=resident_id)
 
 # ============================================================   ERROR CORRECTION ================================================================================
 
