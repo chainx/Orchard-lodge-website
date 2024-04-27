@@ -4,6 +4,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from datetime import datetime
 from docx import Document
+from random import randint
 import pandas as pd
 from shutil import make_archive
 import pathlib
@@ -21,7 +22,7 @@ def main():
     latest_remittance = get_latest(settings.MEDIA_REMITTANCE)
     invoices, batch_number, folder = get_invoice_data_from_sefton_csv(latest_remittance)
 
-    # write_invoices_and_update_db(invoices, batch_number, folder)
+    write_invoices_and_update_db(invoices, batch_number, folder)
 
 #==============================================================================================================================================================================
 
@@ -30,9 +31,15 @@ def write_inovice(folder, date, Resident, sub_items, total, invoice_number, batc
     document = Document(os.path.join(settings.MEDIA_INVOICES, 'INVOICE TEMPLATE.docx'))
 
     for paragraph in document.paragraphs:
-        if paragraph.text.count("NAME OF RECIPIENT")==1: paragraph.text=paragraph.text.replace("NAME OF RECIPIENT",Resident)
-        if paragraph.text.count("DATE TODAY")==1: paragraph.text=paragraph.text.replace("DATE TODAY",date)
-        if paragraph.text.count("INVOICE NUMB")==1: paragraph.text=paragraph.text.replace("INVOICE NUMB",invoice_number)
+        text_fields = {
+            "NAME OF RECIPIENT": Resident.name,
+            'INV_NO': invoice_number,
+            "RES_REF": Resident.customer_ref_no,
+            "DATE TODAY": date,
+        }
+        for text_field, text_input in text_fields.items():
+            if paragraph.text.count(text_field)==1: 
+                paragraph.text = paragraph.text.replace(text_field, text_input)
 
     count=0
     for debt in sub_items.itertuples():
@@ -50,7 +57,7 @@ def write_inovice(folder, date, Resident, sub_items, total, invoice_number, batc
     for paragraph in document.tables[0].cell(1,1).paragraphs:
         if paragraph.text.count('TOTAL')==1: paragraph.text=paragraph.text.replace('TOTAL', f'{total/100:.2f}')
 
-    document.save(os.path.join(folder, invoice_number+' - '+Resident+'.docx'))
+    document.save(os.path.join(folder, f'{invoice_number} - {Resident.name}.docx'))
 
 #==============================================================================================================================================================================
 
@@ -89,8 +96,14 @@ def get_invoice_data_from_sefton_csv(filename): # Obtains data pertinent to writ
         # WARNING: It's possible (but rare) that a private resident goes non-private and hasn't yet been assigned a sefton ID!
         res, is_new = resident.objects.get_or_create(sefton_id=sefton_id)
         if is_new:
+            print(f'New resident added: Name = {res_name}, Sefton ID = {sefton_id}')
             res.title, res.first, res.last = res_name.split(', ')
             res.current, res.private = True, False
+            while True:
+                customer_ref_no = ''.join([str(randint(0, 9)) for n in range(6)])
+                if not resident.objects.filter(customer_ref_no=customer_ref_no):
+                    break # Keep generating customer reference numbers until a unique one is generated
+            res.customer_ref_no = customer_ref_no
             res.save()            
 
         filt = (df['Sefton ID']==sefton_id) & (df['IsIncome']==1) # Filter entries for each resident which are incomes (costs are paid by Sefton)
@@ -126,8 +139,7 @@ def get_invoice_data_from_sefton_csv(filename): # Obtains data pertinent to writ
 
 # Extract arguments for updating database from arguments for writing invoice, creates resident instance for new residents
 def extract_invoice_args_for_db(invoice_data, batch_number, folder):
-    name = invoice_data['Resident'].split()
-    invoice_data['filename'] = folder+invoice_data['invoice_number']+' - '+invoice_data['Resident']+'.docx'
+    invoice_data['filename'] = os.path.join(folder, f"{invoice_data['invoice_number']} - {invoice_data['Resident']}.docx")
     invoice_data['batch_number'] = batch_number
     invoice_data['date'] = datetime.strptime(invoice_data['date'],'%d %B %Y').strftime('%Y-%m-%d')
     invoice_data['year'] = datetime.strptime(invoice_data['date'],'%Y-%m-%d').year
@@ -140,9 +152,9 @@ def write_invoices_and_update_db(invoices, batch_number, folder):
     
     for invoice_data in invoices:
         write_inovice(folder, **invoice_data) # Write invoice file locally
-        # invoice(**extract_invoice_args_for_db(invoice_data, batch_number, folder)).save() # Save invoices to the database
+        invoice(**extract_invoice_args_for_db(invoice_data, batch_number, folder)).save() # Save invoices to the database
 
-    # make_archive(folder, "zip", folder)
+    make_archive(folder, "zip", folder)
 
 #==============================================================================================================================================================================
 
