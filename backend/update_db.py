@@ -1,4 +1,5 @@
 import pandas as pd
+from random import randint
 from datetime import datetime, date
 
 import os
@@ -14,6 +15,17 @@ from main.models import resident, invoice, payment
 from django.db.models import Q
 
 from backend.payments import match_payments_to_resident
+
+def add_customer_reference_numbers(ref_no_length):
+    for res in resident.objects.filter(customer_ref_no=''):
+        while True:
+            customer_ref_no = ''.join([str(randint(0, 9)) for n in range(ref_no_length)])
+            if not resident.objects.filter(customer_ref_no=customer_ref_no):
+                break # Keep generating customer reference numbers until a unique one is generated
+        res.customer_ref_no = customer_ref_no
+        res.save()
+        
+
 
 def add_year_and_batch_no_to_invoice_table():
     for inv in invoice.objects.all():
@@ -91,4 +103,5 @@ if __name__=='__main__':
     # add_year_and_batch_no_to_invoice_table()
     # use_existing_payment_filters()
     # merge_residents(61, 96)
-    add_ID_and_leave_date()
+    # add_ID_and_leave_date()
+    add_customer_reference_numbers(6)
