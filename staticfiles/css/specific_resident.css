@@ -1,0 +1,46 @@
+.header {
+    margin-bottom: 20px;
+}
+
+.row {
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: 0;
+}
+
+.invoice {
+    padding-right: 30px;
+    min-width: 40%;
+    max-width: 40%;
+}
+
+.payment {
+    padding-left: 30px;
+    min-width: 60%;
+    max-width: 60%;
+}
+
+.column table tbody tr:hover {
+    background-color: #e9ecef;
+}
+
+.match-header {
+    display: flex;
+    width: 100%;
+    margin-bottom: 0px;
+}
+
+.match-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 2px solid red;
+    padding: 10px;
+    margin-bottom: 10px;
+    width: 100%;
+    height: 100%;
+}
+
+.match-container .table {
+    margin-bottom: 0px;
+}
