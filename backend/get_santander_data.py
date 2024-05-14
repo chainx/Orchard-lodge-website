@@ -13,12 +13,15 @@ import datetime
 import time
 import json
 
-DATA_DIR = '/home/chainx/Documents/Orchard Lodge accounting data'
-production_settings = json.load(open(os.path.join(DATA_DIR, 'Production_settings.json')))
+import django
+django.setup()
+from django.conf import settings
 
-COOKIE_DIR = production_settings['SANTANDER_COOKIE_DIR']
-AGENT_STRING = production_settings["AGENT_STRING"]
-BANK_DETAILS = production_settings['BANK_DETAILS']
+LOGIN_DETAILS = json.load(open('/home/chainx/Documents/Orchard lodge accounting data (PRIVATE)/Santander_login.json'))
+
+COOKIE_DIR = LOGIN_DETAILS['SANTANDER_COOKIE_DIR']
+AGENT_STRING = LOGIN_DETAILS["AGENT_STRING"]
+BANK_DETAILS = LOGIN_DETAILS['BANK_DETAILS']
 PID = BANK_DETAILS["PID"]
 SECURITY_NUMBER = BANK_DETAILS["SECURITY_NUMBER"]
 
@@ -35,7 +38,7 @@ FILE_FORMAT_DICT = { # These file format values were obtained from the HTML of t
 options = Options()
 options.add_argument("user-data-dir="+COOKIE_DIR)
 options.add_experimental_option("prefs", {
-    "download.default_directory": os.path.join(DATA_DIR, 'Bank statements', 'Santander')
+    "download.default_directory": os.path.join(settings.MEDIA_PAYMENTS, 'Santander')
 })
 
 def main():
