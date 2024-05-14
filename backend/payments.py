@@ -20,24 +20,24 @@ santander_file = os.path.join(settings.MEDIA_PAYMENTS, 'Santander.xlsx')
 
 def main():
     excel_payments = pd.read_excel(santander_file)
-    from_date = datetime.strptime(excel_payments.iloc[0].Date, '%d/%m/%Y').date()
 
+    from_date = datetime.strptime(excel_payments.iloc[0].Date, '%d/%m/%Y').date()
     scrape_santander_bank_statements(from_date, datetime.now().date())                          
-    downloaded_payments = combine_downloaded_files(santander_file_path, delete_used_files=True)
+    downloaded_payments = format_and_combine_downloaded_files(santander_file_path, delete_used_files=True)
     excel_payments = combine_with_local_excel_file(excel_payments, downloaded_payments, from_date)
     check_santander_file_consistent(excel_payments)
     excel_payments.to_excel(santander_file, index=False)
 
     new_payments = get_new_payments(excel_payments)
     print(new_payments)
-    add_payments_to_db(new_payments, from_date)
+    add_payments_to_db(new_payments)
     match_payments_wtih_existing_payment_filters()
 
 # ============================================================   UPDATE DB   ================================================================================
 
 
-def add_payments_to_db(new_payments, from_date, bank='Santander'):
-    for index, payment_ in new_payments[::-1].iterrows():
+def add_payments_to_db(new_payments, bank='Santander'):
+    for index, payment_ in new_payments.iterrows():
         payment(**extract_payment_kwargs_for_db(payment_, bank)).save()
 
 def extract_payment_kwargs_for_db(payment, bank):
@@ -88,7 +88,7 @@ def match_payments_to_resident(resident_id, filters, resident_name, verbose=True
             error_msg += f'But these payments have already been matched to the following residents:\n\n{other_resident_matches}'
             raise ValueError(error_msg)
         if verbose and matching_payments:
-            print(f'The following payments will be matched to {resident_name}:\n\n{matching_payments}')
+            print(f'\nThe following payments will be matched to {resident_name}:\n{matching_payments}')
         matching_payments.update(Resident_id=resident_id)
 
 # ============================================================   ERROR CORRECTION ================================================================================
@@ -118,7 +118,7 @@ def combine_with_local_excel_file(excel_payments, downloaded_payments, from_date
     old_payments = excel_payments[pd.to_datetime(excel_payments.Date, format='%d/%m/%Y').dt.date.lt(from_date)]
     return pd.concat([downloaded_payments, old_payments], ignore_index=True)
 
-def combine_downloaded_files(file_path, check_table_formats=True, delete_used_files=True):
+def format_and_combine_downloaded_files(file_path, check_table_formats=True, delete_used_files=True):
     files = [os.path.join(file_path, file) for file in os.listdir(file_path) if file.endswith('.xls') and '.~lock.' not in file]
     payments_dict = {}
     for filename in files:
