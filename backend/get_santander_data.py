@@ -13,6 +13,8 @@ import datetime
 import time
 import json
 
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import django
 django.setup()
 from django.conf import settings

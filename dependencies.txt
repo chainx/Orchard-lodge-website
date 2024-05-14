@@ -1,5 +1,6 @@
-requests
-bs4
+pandas
+selenium
+webdriver_manager
 python-docx
 django-crispy-forms
 bootstrap4
