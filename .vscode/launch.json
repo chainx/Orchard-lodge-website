@@ -26,7 +26,7 @@
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/backend/get_santander_data.py",
-            "args": ["1/1/2010"],
+            "args": ["1/1/2017"],
             "console": "integratedTerminal",
         }
     ]
