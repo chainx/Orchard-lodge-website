@@ -14,7 +14,6 @@ from backend.utils import get_latest
 
 import django
 django.setup()
-
 from django.conf import settings
 from main.models import resident, invoice
 
@@ -66,13 +65,13 @@ def get_invoice_data_from_sefton_csv(filename): # Obtains data pertinent to writ
     date, year = datetime.now().strftime("%d %B %Y"), datetime.now().strftime("%Y")
     
     batch_number = 1 # Default value, which is used at the start of a new year
-    current_year_invoices = invoice.objects.filter(date__year=year)
+    current_year_invoices = invoice.objects.filter(date__year=year, obsolete=False)
     if current_year_invoices:
         batch_number = max(current_year_invoices.values_list('batch_number', flat=True)) + 1
 
     folder = os.path.join(settings.MEDIA_INVOICES, year, f'{batch_number}. {date}')
 
-    invoice_number = max(invoice.objects.values_list('invoice_number', flat=True))
+    invoice_number = max(invoice.objects.filter(obsolete=False).values_list('invoice_number', flat=True))
 
     try:
         df = pd.read_csv(filename)
@@ -115,7 +114,7 @@ def get_invoice_data_from_sefton_csv(filename): # Obtains data pertinent to writ
                 'Resident': res,
                 'date' : date,
                 'sub_items' : df.loc[filt][['Amount', 'PaymentItemDates', 'AdjustmentLabel']],
-                'total' : int(df.loc[filt]['Amount'].sum()*100), # Amounts are stored in pennies in the database
+                'total' : round(df.loc[filt]['Amount'].sum()*100), # Amounts are stored in pennies in the database
                 'invoice_number' : invoice_number,
                 'batch_number': batch_number
             }
@@ -128,7 +127,7 @@ def get_invoice_data_from_sefton_csv(filename): # Obtains data pertinent to writ
             'Resident' : res,
             'date' : date,
             'sub_items' : pd.DataFrame({'Amount': res.private_rate, 'PaymentItemDates' : payment_period, 'AdjustmentLabel' : ''}, index=[0]),
-            'total' : res.private_rate,
+            'total' : res.private_rate*100, # Amounts are stored in pennies in the database
             'invoice_number' : invoice_number
         }
         invoices.append(row)
@@ -143,7 +142,6 @@ def extract_invoice_args_for_db(invoice_data, batch_number, folder):
     invoice_data['batch_number'] = batch_number
     invoice_data['date'] = datetime.strptime(invoice_data['date'],'%d %B %Y').strftime('%Y-%m-%d')
     invoice_data['year'] = datetime.strptime(invoice_data['date'],'%Y-%m-%d').year
-    invoice_data['total'] *= 100 
     invoice_data.pop('sub_items')
     return invoice_data
 
