@@ -16,7 +16,6 @@ from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.firefox.service import Service
 from webdriver_manager.firefox import GeckoDriverManager
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'OrchardLodge.settings.production')
 import django
 django.setup()
 
@@ -26,13 +25,11 @@ from main.models import sefton_login_details
 origin = 'https://providerportal.sefton.gov.uk'
 base_url = origin + '/ProviderPortal_IAS_Live/secure/'
 
-save_path = settings.MEDIA_REMITTANCE
-
 options = Options()
 options.add_argument('--headless')
 options.set_preference("browser.download.folderList", 2)
 options.set_preference("browser.download.manager.showWhenStarting", False)
-options.set_preference("browser.download.dir", str(save_path))
+options.set_preference("browser.download.dir", str(settings.MEDIA_REMITTANCE))
 options.set_preference("pdfjs.disabled", True)
 
 def get_remittance_advice(period_id=None, download_csv=True, download_pdf=True):	   
@@ -66,6 +63,10 @@ def file_manipulation(period_range):
     shutil.move(os.path.join(settings.MEDIA_REMITTANCE, 'report_export.csv'), os.path.join(settings.MEDIA_REMITTANCE, year, filename+'.csv'))
     shutil.move(os.path.join(settings.MEDIA_REMITTANCE, 'ActiveReports.PDF'), os.path.join(settings.MEDIA_REMITTANCE, year, filename+'.PDF'))
     return os.path.join(settings.MEDIA_REMITTANCE, year, filename+'.csv')
+
+
+# ======================================================================================================================
+
 
 def login(driver, email, password, passcode):                  
     driver.get(base_url+'home.aspx')
