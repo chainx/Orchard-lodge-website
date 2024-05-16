@@ -10,7 +10,7 @@ from shutil import make_archive
 import pathlib
 
 from backend.get_sefton_data import get_remittance_advice
-from backend.utils import get_latest
+from backend.utils import latest_filename
 
 import django
 django.setup()
@@ -18,13 +18,12 @@ from django.conf import settings
 from main.models import resident, invoice
 
 def main():
-    latest_remittance = get_latest(settings.MEDIA_REMITTANCE)
+    latest_remittance = latest_filename(settings.MEDIA_REMITTANCE)
     invoices, batch_number, folder = get_invoice_data_from_sefton_csv(latest_remittance)
 
     write_invoices_and_update_db(invoices, batch_number, folder)
 
-#==============================================================================================================================================================================
-
+#==================================================================================================================================================================
 def write_inovice(folder, date, Resident, sub_items, total, invoice_number, batch_number=None):
 
     document = Document(os.path.join(settings.MEDIA_INVOICES, 'INVOICE TEMPLATE.docx'))
@@ -58,8 +57,7 @@ def write_inovice(folder, date, Resident, sub_items, total, invoice_number, batc
 
     document.save(os.path.join(folder, f'{invoice_number} - {Resident.name}.docx'))
 
-#==============================================================================================================================================================================
-
+#==================================================================================================================================================================
 def get_invoice_data_from_sefton_csv(filename): # Obtains data pertinent to writing invoices and updating the database
 
     date, year = datetime.now().strftime("%d %B %Y"), datetime.now().strftime("%Y")
@@ -73,39 +71,16 @@ def get_invoice_data_from_sefton_csv(filename): # Obtains data pertinent to writ
 
     invoice_number = max(invoice.objects.filter(obsolete=False).values_list('invoice_number', flat=True))
 
-    try:
-        df = pd.read_csv(filename)
-    except:
-        df = pd.read_csv(filename, encoding='ISO-8859-1')
-    
-    df = df.fillna('')# if ServiceTotalLabel != 'Total for Orchard Lodge Care Home' then it may contain a note from Sefton
-    payment_period = df.iloc[0]['ReportContext'].split('Payment Period from ')[1]
-
-    df['FormattedName'] = df.apply(
-        lambda row: row['Person'].split()[0] + ',' + ', '.join(row['ClientName'].split(' (')[0].split(',')[::-1]),
-        axis=1
-    )
-    df['Sefton ID'] = df['ClientName'].apply(lambda x: x.split(' (')[1][:-1])
+    df, payment_period = read_and_format_sefton_csv(filename)
 
     invoices=[]
     for index, df_row in df[['FormattedName', 'Sefton ID']].drop_duplicates().iterrows():
-        res_name, sefton_id = df_row['FormattedName'], df_row['Sefton ID']
         
-        # Create new resident if an existing resident isn't in the database
-        # WARNING: It's possible (but rare) that a private resident goes non-private and hasn't yet been assigned a sefton ID!
-        res, is_new = resident.objects.get_or_create(sefton_id=sefton_id)
-        if is_new:
-            print(f'New resident added: Name = {res_name}, Sefton ID = {sefton_id}')
-            res.title, res.first, res.last = res_name.split(', ')
-            res.current, res.private = True, False
-            while True:
-                customer_ref_no = ''.join([str(randint(0, 9)) for n in range(6)])
-                if not resident.objects.filter(customer_ref_no=customer_ref_no):
-                    break # Keep generating customer reference numbers until a unique one is generated
-            res.customer_ref_no = customer_ref_no
-            res.save()            
+        res_name, sefton_id = df_row['FormattedName'], df_row['Sefton ID']
+        res = get_or_add_resident(res_name, sefton_id)
 
-        filt = (df['Sefton ID']==sefton_id) & (df['IsIncome']==1) # Filter entries for each resident which are incomes (costs are paid by Sefton)
+        # Filter entries for each resident which are incomes (costs are paid by Sefton)
+        filt = (df['Sefton ID']==sefton_id) & (df['IsIncome']==1)
         if not df.loc[filt].empty:
             
             invoice_number = "%05d" % (int(invoice_number)+1)
@@ -119,22 +94,11 @@ def get_invoice_data_from_sefton_csv(filename): # Obtains data pertinent to writ
                 'batch_number': batch_number
             }
             invoices.append(row)
-
-    residents = resident.objects.filter(current=True, private=True).order_by('last') # Add data for private residents
-    for res in residents:
-        invoice_number = "%05d" % (int(invoice_number)+1)
-        row = {
-            'Resident' : res,
-            'date' : date,
-            'sub_items' : pd.DataFrame({'Amount': res.private_rate, 'PaymentItemDates' : payment_period, 'AdjustmentLabel' : ''}, index=[0]),
-            'total' : res.private_rate*100, # Amounts are stored in pennies in the database
-            'invoice_number' : invoice_number
-        }
-        invoices.append(row)
     
+    invoices += compile_invoice_data_for_private_residents(payment_period, date)
     return invoices, batch_number, folder
 
-#==============================================================================================================================================================================
+#=============================================   UPDATE DB   ====================================================================================================
 
 # Extract arguments for updating database from arguments for writing invoice, creates resident instance for new residents
 def extract_invoice_args_for_db(invoice_data, batch_number, folder):
@@ -154,7 +118,80 @@ def write_invoices_and_update_db(invoices, batch_number, folder):
 
     make_archive(folder, "zip", folder)
 
-#==============================================================================================================================================================================
+#=============================================   UTILS   =======================================================================================================
+
+def read_and_format_sefton_csv(filename):
+    try:
+        df = pd.read_csv(filename)
+    except:
+        df = pd.read_csv(filename, encoding='ISO-8859-1')
+    
+    df = df.fillna('')
+
+    unusual_rows = df[df['ServiceTotalLabel']!='Total for Orchard Lodge Care Home']
+    if not unusual_rows.empty:
+        df = df[df['ServiceTotalLabel']=='Total for Orchard Lodge Care Home'] # Remove unusual rows
+
+    payment_period = df.iloc[0]['ReportContext'].split('Payment Period from ')[1]
+
+    format_function = lambda row: row['Person'].split()[0] + ',' + ', '.join(row['ClientName'].split(' (')[0].split(',')[::-1])
+    df['FormattedName'] = df.apply(format_function, axis=1)
+    df['Sefton ID'] = df['ClientName'].apply(lambda x: x.split(' (')[1][:-1])
+    
+    return df, payment_period
+
+def compile_invoice_data_for_private_residents(payment_period, date):
+    private_invoices = []
+    residents = resident.objects.filter(current=True, private=True).order_by('last') # Add data for private residents
+    for res in residents:
+        invoice_number = "%05d" % (int(invoice_number)+1)
+        row = {
+            'Resident' : res,
+            'date' : date,
+            'sub_items' : pd.DataFrame({'Amount': res.private_rate, 'PaymentItemDates' : payment_period, 'AdjustmentLabel' : ''}, index=[0]),
+            'total' : res.private_rate*100, # Amounts are stored in pennies in the database
+            'invoice_number' : invoice_number
+        }
+        private_invoices.append(row)
+    return private_invoices
+
+def get_or_add_resident(res_name, sefton_id, update_private_current_status=True, save=True):
+    try:
+        res = resident.objects.get(sefton_id=sefton_id)
+    except:
+        title, first, last = res_name.split(', ')
+        if res := get_residents_with_similar_name(first, last):
+            pass
+        else:
+            res = resident(title=title, first=first, last=last, sefton_id=sefton_id)
+            if update_private_current_status:
+                res.current = True
+                res.private = False
+            res.customer_ref_no = generate_unique_customer_reference_number()
+            if save:
+                res.save()
+    if res.private:
+        print(f'The private resident {first} {last} has been added to the Sefton remittance advice')
+    return res
+
+def get_residents_with_similar_name(first, last):
+    # Create a regex pattern that matches with any number of spaces or apostrophes between characters
+    regex_pattern = r'(?i)^' + r'[\s\']*'.join(last.replace(' ','').replace("'", '')) + r'[\s\']*$'
+    close_matches = resident.objects.filter(first__istartswith=first.split()[0], last__regex=regex_pattern)
+    if len(close_matches)==1:
+        print(f'The resident {first} {last} has been identified with the following close match:\n{close_matches[0]}\n')
+        return close_matches[0]
+    elif len(close_matches)>1:
+        raise ValueError(f'Multiple close matches for {first} {last} in the database:\n {close_matches}\n')
+
+def generate_unique_customer_reference_number():
+    while True:
+        customer_ref_no = ''.join([str(randint(0, 9)) for n in range(6)])
+        if not resident.objects.filter(customer_ref_no=customer_ref_no):
+            break # Keep generating customer reference numbers until a unique one is generated
+    return customer_ref_no
+
+#==================================================================================================================================================================
 
 if __name__=='__main__':
     main()

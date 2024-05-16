@@ -5,8 +5,10 @@ Home page:
     -Add global variable to show last bank statement download date
 
 Residents page:
+    -Add start and leave date to residents page with the ability to modify
     -Add totals row to resident summary page
     -Add global variable to modify cutoff date and form to modify it
+    -Add Sefton payments for each payment period
 
 Specific resident's page:
     -Functionality to mark as obsolete, modify, view and download each invoice
@@ -15,5 +17,5 @@ Upload page:
     -Functionality to upload invoice and extract info from invoice + checksum
    
 -Functionality to add cash / cheque payments (even those that don't exist yet)
--Use scraped data to find which invoices have been manually edited
+-Use scraped data to find which invoices have been manually edited (checksum)
 -Allow for modification to invoices from Sefton before writing to DB

@@ -9,12 +9,12 @@ import os
 import json
 
 from django.conf import settings
-from backend.utils import get_latest
+from backend.utils import latest_filename
 
 SERVER_ADDRESS, SERVER_PORT = 'smtp-mail.outlook.com', 587
 
 def send_email():
-    path = get_latest(settings.MEDIA_INVOICES)
+    path = latest_filename(settings.MEDIA_INVOICES)
     Email_details = json.load(open(os.path.join(settings.MEDIA_ROOT, 'Email_details.json')))
     
     msg = MIMEMultipart()

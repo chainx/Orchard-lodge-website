@@ -16,6 +16,7 @@ class resident(models.Model):
     private = models.BooleanField(default=False)
     private_rate = models.IntegerField(default=0, blank=True, null=True)
     filters = models.CharField(max_length=256, default='', blank=True, null=True)
+    start_date = models.DateField(blank=True, null=True)
     leave_date = models.DateField(blank=True, null=True)
 
     @property
