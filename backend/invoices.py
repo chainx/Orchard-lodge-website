@@ -155,7 +155,7 @@ def compile_invoice_data_for_private_residents(payment_period, date):
         private_invoices.append(row)
     return private_invoices
 
-def get_or_add_resident(res_name, sefton_id, update_private_current_status=True, save=True):
+def get_or_add_resident(res_name, sefton_id, current=True, save=True):
     try:
         res = resident.objects.get(sefton_id=sefton_id)
     except:
@@ -164,9 +164,8 @@ def get_or_add_resident(res_name, sefton_id, update_private_current_status=True,
             pass
         else:
             res = resident(title=title, first=first, last=last, sefton_id=sefton_id)
-            if update_private_current_status:
-                res.current = True
-                res.private = False
+            res.current = current
+            res.private = False
             res.customer_ref_no = generate_unique_customer_reference_number()
             if save:
                 res.save()
