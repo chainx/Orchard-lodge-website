@@ -69,7 +69,7 @@ def add_ID_and_start_and_leave_dates():
     
     for row in client_info.iterrows():
         res_name, sefton_id = row[1].iloc[1], row[1].iloc[0]
-        res = get_or_add_resident(res_name, sefton_id, update_private_current_status=False, save=False)
+        res = get_or_add_resident(res_name, sefton_id, current=False, save=False)
 
         res.sefton_id = sefton_id
         if (start_date := row[1].iloc[2]) != earliest_date:
