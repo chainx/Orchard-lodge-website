@@ -10,7 +10,7 @@ from shutil import make_archive
 import pathlib
 
 from backend.get_sefton_data import get_remittance_advice
-from backend.utils import latest_filename
+from backend.file_utils import latest_filename
 
 import django
 django.setup()
