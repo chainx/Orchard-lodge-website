@@ -12,7 +12,7 @@ from django.core.files.storage import FileSystemStorage
 from .forms import UploadFileForm, ResidentForm
 from .models import resident, invoice, payment
 
-from backend.utils import file_num, get_latest, latest_num
+from backend.file_utils import file_num, latest_filename, latest_filenum
 from backend.get_sefton_data import get_remittance_advice
 from backend.invoices import get_invoice_data_from_sefton_csv, write_invoices_and_update_db
 from backend.payments import match_payments_to_resident
@@ -23,13 +23,13 @@ from django.conf import settings
 # Create your views here.
 def home(request):
     year = datetime.now().strftime("%Y")
-    latest_remittance = get_latest(settings.MEDIA_REMITTANCE)
+    latest_remittance = latest_filename(settings.MEDIA_REMITTANCE)
 
     if request.user.is_authenticated:
         if request.method=='POST':
             if request.POST['Sefton'] == 'Obtain latest invoices from Sefton':
                 # Check if latest remittance advice matches latest invoice batch
-                if latest_num(settings.MEDIA_REMITTANCE) != latest_num(settings.MEDIA_INVOICES):
+                if latest_filenum(settings.MEDIA_REMITTANCE) != latest_filenum(settings.MEDIA_INVOICES):
                     return render(request, "main/remittance_advice.html", {'data': get_invoice_data_from_sefton_csv(latest_remittance)[0]})
                 else:
                     filename = get_remittance_advice()
@@ -51,7 +51,7 @@ def home(request):
 def payments(request):
     if request.user.is_authenticated:
         data = {
-            'unmatched_payments': payment.objects.filter(Resident_id__isnull=True).order_by('date').reverse(),
+            'unmatched_payments': payment.objects.filter(Resident_id__isnull=True, date__gte=date(2018,1,1)).order_by('date').reverse(),
             'residents': resident.objects.all(),
         }
         if request.method=='POST':
