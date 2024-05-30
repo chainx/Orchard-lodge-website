@@ -19,7 +19,13 @@ from main.models import resident, invoice
 
 def main():
     latest_remittance = latest_filename(settings.MEDIA_REMITTANCE)
-    invoices, batch_number, folder = get_invoice_data_from_sefton_csv(latest_remittance)
+    invoices, sefton_payments, batch_number, folder = get_invoice_data_from_sefton_csv(latest_remittance)
+    
+    for inv in invoices:
+        print(inv['invoice_number'], '   ', inv['Resident'].name, ' '*(30 - len(inv['Resident'].name)) + f"£{inv['total']/100:.2f}")
+    print()
+    for payment in sefton_payments:
+        print(payment['Resident'].name, ' '*(30 - len(payment['Resident'].name)) + f"£{payment['total']/100:.2f}")
 
     write_invoices_and_update_db(invoices, batch_number, folder)
 
@@ -61,42 +67,57 @@ def write_inovice(folder, date, Resident, sub_items, total, invoice_number, batc
 def get_invoice_data_from_sefton_csv(filename): # Obtains data pertinent to writing invoices and updating the database
 
     date, year = datetime.now().strftime("%d %B %Y"), datetime.now().strftime("%Y")
-    
-    batch_number = 1 # Default value, which is used at the start of a new year
-    current_year_invoices = invoice.objects.filter(date__year=year, obsolete=False)
-    if current_year_invoices:
-        batch_number = max(current_year_invoices.values_list('batch_number', flat=True)) + 1
-
+    batch_number = int(os.path.basename(filename).split('.')[0])
     folder = os.path.join(settings.MEDIA_INVOICES, year, f'{batch_number}. {date}')
-
     invoice_number = max(invoice.objects.filter(obsolete=False).values_list('invoice_number', flat=True))
 
     df, payment_period = read_and_format_sefton_csv(filename)
 
-    invoices=[]
+    invoices, sefton_payments = [], []
     for index, df_row in df[['FormattedName', 'Sefton ID']].drop_duplicates().iterrows():
         
         res_name, sefton_id = df_row['FormattedName'], df_row['Sefton ID']
         res = get_or_add_resident(res_name, sefton_id)
 
-        # Filter entries for each resident which are incomes (costs are paid by Sefton)
-        filt = (df['Sefton ID']==sefton_id) & (df['IsIncome']==1)
-        if not df.loc[filt].empty:
-            
+        if inv := compile_personal_contributions_and_sefton_payments(res, df, batch_number, date, invoice_number, cost_or_income=1):
             invoice_number = "%05d" % (int(invoice_number)+1)
-
-            row = {
-                'Resident': res,
-                'date' : date,
-                'sub_items' : df.loc[filt][['Amount', 'PaymentItemDates', 'AdjustmentLabel']],
-                'total' : round(df.loc[filt]['Amount'].sum()*100), # Amounts are stored in pennies in the database
-                'invoice_number' : invoice_number,
-                'batch_number': batch_number
-            }
-            invoices.append(row)
+            invoices.append(inv)
+        if payment := compile_personal_contributions_and_sefton_payments(res, df, batch_number, date, cost_or_income=0):
+            sefton_payments.append(payment)
     
-    invoices += compile_invoice_data_for_private_residents(payment_period, date)
-    return invoices, batch_number, folder
+    invoices += compile_invoices_for_private_residents(payment_period, date, invoice_number)
+    return invoices, sefton_payments, batch_number, folder
+
+def compile_personal_contributions_and_sefton_payments(res, df, batch_number, date, invoice_number=None, cost_or_income=1):
+    # cost_or_income = 1 for personal contributions and 0 for Sefton payments
+    filt = (df['Sefton ID']==res.sefton_id) & (df['IsIncome']==cost_or_income)
+    if not df.loc[filt].empty:
+        row = {
+            'Resident': res,
+            'date' : date,
+            'sub_items' : df.loc[filt][['Amount', 'PaymentItemDates', 'AdjustmentLabel']],
+            'total' : round(df.loc[filt]['Amount'].sum()*100), # Amounts are stored in pennies in the database
+            'batch_number': batch_number
+        }
+        if invoice_number:
+            row['invoice_number'] = invoice_number
+
+        return row
+
+def compile_invoices_for_private_residents(payment_period, date, invoice_number):
+    private_invoices = []
+    residents = resident.objects.filter(current=True, private=True).order_by('last') # Add data for private residents
+    for res in residents:
+        invoice_number = "%05d" % (int(invoice_number)+1)
+        row = {
+            'Resident' : res,
+            'date' : date,
+            'sub_items' : pd.DataFrame({'Amount': res.private_rate, 'PaymentItemDates' : payment_period, 'AdjustmentLabel' : ''}, index=[0]),
+            'total' : res.private_rate*100, # Amounts are stored in pennies in the database
+            'invoice_number' : invoice_number
+        }
+        private_invoices.append(row)
+    return private_invoices
 
 #=============================================   UPDATE DB   ====================================================================================================
 
@@ -112,6 +133,10 @@ def extract_invoice_args_for_db(invoice_data, batch_number, folder):
 def write_invoices_and_update_db(invoices, batch_number, folder):
     pathlib.Path(folder).mkdir(parents=True, exist_ok=True)
     
+    year = datetime.now().strftime("%Y")
+    if invoice.objects.filter(year=year, batch_number=batch_number):
+        raise ValueError(f'There already exist entries in the database for batch number {batch_number} in {year}')
+
     for invoice_data in invoices:
         write_inovice(folder, **invoice_data) # Write invoice file locally
         invoice(**extract_invoice_args_for_db(invoice_data, batch_number, folder)).save() # Save invoices to the database
@@ -140,21 +165,6 @@ def read_and_format_sefton_csv(filename):
     
     return df, payment_period
 
-def compile_invoice_data_for_private_residents(payment_period, date):
-    private_invoices = []
-    residents = resident.objects.filter(current=True, private=True).order_by('last') # Add data for private residents
-    for res in residents:
-        invoice_number = "%05d" % (int(invoice_number)+1)
-        row = {
-            'Resident' : res,
-            'date' : date,
-            'sub_items' : pd.DataFrame({'Amount': res.private_rate, 'PaymentItemDates' : payment_period, 'AdjustmentLabel' : ''}, index=[0]),
-            'total' : res.private_rate*100, # Amounts are stored in pennies in the database
-            'invoice_number' : invoice_number
-        }
-        private_invoices.append(row)
-    return private_invoices
-
 def get_or_add_resident(res_name, sefton_id, current=True, save=True):
     try:
         res = resident.objects.get(sefton_id=sefton_id)
@@ -168,9 +178,10 @@ def get_or_add_resident(res_name, sefton_id, current=True, save=True):
             res.private = False
             res.customer_ref_no = generate_unique_customer_reference_number()
             if save:
+                print(f'New resident added: {res.name} - {res.customer_ref_no}\n')
                 res.save()
     if res.private:
-        print(f'The private resident {first} {last} has been added to the Sefton remittance advice')
+        print(f'The private resident {res.name} has been added to the Sefton remittance advice\n')
     return res
 
 def get_residents_with_similar_name(first, last):
