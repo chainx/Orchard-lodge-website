@@ -13,6 +13,8 @@ MEDIA_PAYMENTS = Path(os.path.join(MEDIA_ROOT, 'Bank statements'))
 
 secret_settings = json.load(open(os.path.join(MEDIA_ROOT, 'Production_settings.json')))
 
+EMAIL_DETAILS = secret_settings['EMAIL_DETAILS'] # Used for sending out emails
+
 ALLOWED_HOSTS = secret_settings['ALLOWED_HOSTS']
 
 # SECURITY WARNING: keep the secret key used in production secret!

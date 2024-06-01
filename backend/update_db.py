@@ -11,10 +11,11 @@ import django
 django.setup()
 from django.conf import settings
 
-from main.models import resident, invoice, payment
+from main.models import resident, invoice, payment, sefton_payment
 
 from backend.payments import match_payments_to_resident
-from backend.invoices import read_and_format_sefton_csv, get_or_add_resident
+from backend.invoices import read_and_format_sefton_csv, get_or_add_resident, get_invoice_data_from_sefton_csv
+from backend.file_utils import file_num, gather_sefton_remittance_advice
 
 def add_customer_reference_numbers(ref_no_length):
     for res in resident.objects.filter(customer_ref_no=''):
@@ -27,7 +28,7 @@ def add_customer_reference_numbers(ref_no_length):
 
 def add_year_and_batch_no_to_invoice_table():
     for inv in invoice.objects.all():
-        inv.batch_number = str(inv.filename).split('/')[2].split('.')[0]
+        inv.batch_number = file_num(inv.filename)
         inv.year = str(inv.filename).split('/')[1]
         inv.save()
 
@@ -35,8 +36,7 @@ def merge_residents(id_old, id_new):
     invoice.objects.filter(Resident_id=id_old).update(Resident_id=id_new)
     payment.objects.filter(Resident_id=id_old).update(Resident_id=id_new)
 
-def update_client_info_from_sefton_csv(client_info, year, filename):
-    filename = os.path.join(settings.MEDIA_REMITTANCE, year, filename)
+def update_client_info_from_sefton_csv(client_info, filename):
     df, payment_period = read_and_format_sefton_csv(filename)
 
     clients = df[['FormattedName', 'Sefton ID']].drop_duplicates()
@@ -49,11 +49,9 @@ def update_client_info_from_sefton_csv(client_info, year, filename):
 
 def add_ID_and_start_and_leave_dates():
     client_info = pd.DataFrame()
-    for year in sorted(os.listdir(settings.MEDIA_REMITTANCE)):
-        filenames = sorted(os.listdir(os.path.join(settings.MEDIA_REMITTANCE, year)), key=lambda x: int(x.split('.')[0]))
-        for filename in filenames:
-            if '.csv' in filename:
-                client_info = update_client_info_from_sefton_csv(client_info, year, filename)
+    filenames = gather_sefton_remittance_advice()
+    for filename in filenames:
+        client_info = update_client_info_from_sefton_csv(client_info, filename)
 
     client_info = client_info.groupby(['FormattedName', 'Sefton ID']).agg({'Start Date': 'min', 'Leave Date': 'max'}).reset_index()
 
@@ -79,9 +77,27 @@ def add_ID_and_start_and_leave_dates():
         
         res.save()
 
+def add_Sefton_payment_info_to_db(from_year):
+    filenames = gather_sefton_remittance_advice(from_year)
+    for filename in filenames:
+        _, sefton_payments, _, _ = get_invoice_data_from_sefton_csv(filename, save_new_residents=False)
+        
+        day, month = os.path.basename(filename).split(' - ')[1].split('.')[0].split()
+        year = os.path.basename(os.path.dirname(filename))
+        
+        for payment in sefton_payments:
+            sefton_payment(
+                Resident = payment['Resident'],
+                date = datetime.strptime(f"{day} {month} {year}", "%d %B %Y").date(),
+                year = os.path.basename(os.path.dirname(filename)),
+                batch_number = payment['batch_number'],
+                total = payment['total'],
+            ).save()
+
 if __name__=='__main__':
     # add_year_and_batch_no_to_invoice_table()
     # use_existing_payment_filters()
     # merge_residents(61, 96)
     # add_customer_reference_numbers(6)
-    add_ID_and_start_and_leave_dates()
+    # add_ID_and_start_and_leave_dates()
+    add_Sefton_payment_info_to_db('2019')

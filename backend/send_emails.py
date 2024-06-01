@@ -15,7 +15,7 @@ SERVER_ADDRESS, SERVER_PORT = 'smtp-mail.outlook.com', 587
 
 def send_email():
     path = latest_filename(settings.MEDIA_INVOICES)
-    Email_details = json.load(open(os.path.join(settings.MEDIA_ROOT, 'Email_details.json')))
+    Email_details = settings.EMAIL_DETAILS
     
     msg = MIMEMultipart()
     msg.attach(MIMEText(Email_details['MESSAGE']))

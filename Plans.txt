@@ -8,10 +8,10 @@ Residents page:
     -Add start and leave date to residents page with the ability to modify
     -Add totals row to resident summary page
     -Add global variable to modify cutoff date and form to modify it
-    -Add Sefton payments for each payment period
 
 Specific resident's page:
     -Functionality to mark as obsolete, modify, view and download each invoice
+    -Add Sefton payments for each payment period
 
 Upload page:
     -Functionality to upload invoice and extract info from invoice + checksum
