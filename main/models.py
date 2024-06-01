@@ -4,7 +4,7 @@ from django.db import models
 from django.core.validators import MinLengthValidator
 
 # For the purposes of the resident dashboard, invoices and payments before the CUT_OFF date aren't considered
-CUTOFF_DATE = date(2023, 1, 23)
+CUTOFF_DATE = date(2021, 1, 23)
 
 class resident(models.Model):
     title = models.CharField(max_length=8)
@@ -93,6 +93,18 @@ class invoice(models.Model):
 
     def __str__(self):
         return str(self.filename)
+    
+class sefton_payment(models.Model):
+    Resident = models.ForeignKey(resident, on_delete=models.CASCADE, blank=True, null=True)
+
+    batch_number = models.IntegerField(blank=True, null=True)
+    date = models.DateField(blank=True, null=True) # End date of remittance advice period
+    year = models.IntegerField(blank=True, null=True)
+    total = models.IntegerField(blank=True, null=True)
+    
+    @property
+    def str_total(self):
+        return u'\u00A3' + f'{self.total/100:.2f}'
     
 class sefton_login_details(models.Model):
     email = models.CharField(max_length=256, blank=True, null=True)

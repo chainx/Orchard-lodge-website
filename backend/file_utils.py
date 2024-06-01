@@ -9,6 +9,7 @@ from django.conf import settings
 
 # Used in functions below and in views.py for the download page to order the filenames 
 def file_num(filename):
+        filename = os.path.basename(filename)
         if '.PDF' in filename:
              return -1 # Don't want pandas trying to read PDF when writing invoices
         if filename[1].isdigit():
@@ -26,6 +27,15 @@ def latest_filename(path):
     latest_year = max([year for year in os.listdir(path) if len(year)==4])
     dir = os.path.join(path, latest_year)
     return os.path.join(dir, max(os.listdir(dir), key=file_num))
+
+def gather_sefton_remittance_advice(from_year='2013'):
+    remittance_advice_files = []
+    years = [year for year in sorted(os.listdir(settings.MEDIA_REMITTANCE)) if year >= from_year]
+    for year in years:
+        dir = os.path.join(settings.MEDIA_REMITTANCE, year)
+        filenames = sorted(os.listdir(dir), key=file_num)
+        remittance_advice_files += [os.path.join(dir, filename) for filename in filenames if '.csv' in filename]
+    return remittance_advice_files
 
 def gather_all_invoices_for_resident(first_name, last_name):
     destination_path = os.path.join(settings.MEDIA_INVOICES, f'{first_name}_{last_name}')

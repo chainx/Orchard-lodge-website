@@ -10,26 +10,27 @@ from shutil import make_archive
 import pathlib
 
 from backend.get_sefton_data import get_remittance_advice
-from backend.file_utils import latest_filename
+from backend.file_utils import latest_filename, file_num
 
 import django
 django.setup()
 from django.conf import settings
-from main.models import resident, invoice
+from main.models import resident, invoice, sefton_payment
 
 def main():
     latest_remittance = latest_filename(settings.MEDIA_REMITTANCE)
     invoices, sefton_payments, batch_number, folder = get_invoice_data_from_sefton_csv(latest_remittance)
     
-    for inv in invoices:
-        print(inv['invoice_number'], '   ', inv['Resident'].name, ' '*(30 - len(inv['Resident'].name)) + f"£{inv['total']/100:.2f}")
-    print()
-    for payment in sefton_payments:
-        print(payment['Resident'].name, ' '*(30 - len(payment['Resident'].name)) + f"£{payment['total']/100:.2f}")
-
-    write_invoices_and_update_db(invoices, batch_number, folder)
+    # for inv in invoices:
+    #     print(inv['invoice_number'], '   ', inv['Resident'].name, ' '*(30 - len(inv['Resident'].name)) + f"£{inv['total']/100:.2f}")
+    # print()
+    # for payment in sefton_payments:
+    #     print(payment['Resident'].name, ' '*(30 - len(payment['Resident'].name)) + f"£{payment['total']/100:.2f}")
+        
+    write_invoices_and_update_db(invoices, sefton_payments, batch_number, folder)
 
 #==================================================================================================================================================================
+
 def write_inovice(folder, date, Resident, sub_items, total, invoice_number, batch_number=None):
 
     document = Document(os.path.join(settings.MEDIA_INVOICES, 'INVOICE TEMPLATE.docx'))
@@ -64,12 +65,13 @@ def write_inovice(folder, date, Resident, sub_items, total, invoice_number, batc
     document.save(os.path.join(folder, f'{invoice_number} - {Resident.name}.docx'))
 
 #==================================================================================================================================================================
-def get_invoice_data_from_sefton_csv(filename): # Obtains data pertinent to writing invoices and updating the database
 
+def get_invoice_data_from_sefton_csv(filename, save_new_residents=True): # Obtains data pertinent to writing invoices and updating the database
     date, year = datetime.now().strftime("%d %B %Y"), datetime.now().strftime("%Y")
-    batch_number = int(os.path.basename(filename).split('.')[0])
+    batch_number = file_num(os.path.basename(filename))
     folder = os.path.join(settings.MEDIA_INVOICES, year, f'{batch_number}. {date}')
     invoice_number = max(invoice.objects.filter(obsolete=False).values_list('invoice_number', flat=True))
+    invoice_number = "%05d" % (int(invoice_number)+1)
 
     df, payment_period = read_and_format_sefton_csv(filename)
 
@@ -77,15 +79,15 @@ def get_invoice_data_from_sefton_csv(filename): # Obtains data pertinent to writ
     for index, df_row in df[['FormattedName', 'Sefton ID']].drop_duplicates().iterrows():
         
         res_name, sefton_id = df_row['FormattedName'], df_row['Sefton ID']
-        res = get_or_add_resident(res_name, sefton_id)
+        res = get_or_add_resident(res_name, sefton_id, save=save_new_residents)
 
         if inv := compile_personal_contributions_and_sefton_payments(res, df, batch_number, date, invoice_number, cost_or_income=1):
             invoice_number = "%05d" % (int(invoice_number)+1)
             invoices.append(inv)
-        if payment := compile_personal_contributions_and_sefton_payments(res, df, batch_number, date, cost_or_income=0):
+        if payment := compile_personal_contributions_and_sefton_payments(res, df, batch_number, payment_period, cost_or_income=0):
             sefton_payments.append(payment)
     
-    invoices += compile_invoices_for_private_residents(payment_period, date, invoice_number)
+    invoices += compile_invoices_for_private_residents(payment_period, batch_number, date, invoice_number)
     return invoices, sefton_payments, batch_number, folder
 
 def compile_personal_contributions_and_sefton_payments(res, df, batch_number, date, invoice_number=None, cost_or_income=1):
@@ -104,7 +106,7 @@ def compile_personal_contributions_and_sefton_payments(res, df, batch_number, da
 
         return row
 
-def compile_invoices_for_private_residents(payment_period, date, invoice_number):
+def compile_invoices_for_private_residents(payment_period, batch_number, date, invoice_number):
     private_invoices = []
     residents = resident.objects.filter(current=True, private=True).order_by('last') # Add data for private residents
     for res in residents:
@@ -114,6 +116,7 @@ def compile_invoices_for_private_residents(payment_period, date, invoice_number)
             'date' : date,
             'sub_items' : pd.DataFrame({'Amount': res.private_rate, 'PaymentItemDates' : payment_period, 'AdjustmentLabel' : ''}, index=[0]),
             'total' : res.private_rate*100, # Amounts are stored in pennies in the database
+            'batch_number': batch_number,
             'invoice_number' : invoice_number
         }
         private_invoices.append(row)
@@ -122,24 +125,31 @@ def compile_invoices_for_private_residents(payment_period, date, invoice_number)
 #=============================================   UPDATE DB   ====================================================================================================
 
 # Extract arguments for updating database from arguments for writing invoice, creates resident instance for new residents
-def extract_invoice_args_for_db(invoice_data, batch_number, folder):
+def extract_invoice_args_for_db(invoice_data, folder):
     invoice_data['filename'] = os.path.join(folder, f"{invoice_data['invoice_number']} - {invoice_data['Resident']}.docx")
-    invoice_data['batch_number'] = batch_number
-    invoice_data['date'] = datetime.strptime(invoice_data['date'],'%d %B %Y').strftime('%Y-%m-%d')
-    invoice_data['year'] = datetime.strptime(invoice_data['date'],'%Y-%m-%d').year
+    invoice_data['date'] = datetime.strptime(invoice_data['date'], '%d %B %Y')
+    invoice_data['year'] = invoice_data['date'].year
     invoice_data.pop('sub_items')
     return invoice_data
 
-def write_invoices_and_update_db(invoices, batch_number, folder):
-    pathlib.Path(folder).mkdir(parents=True, exist_ok=True)
-    
+def extract_payment_args_for_db(payment):
+    payment['date'] = datetime.strptime(payment['date'].split(' to ')[1], '%d/%m/%Y').date()
+    payment['year'] = payment['date'].year
+    payment.pop('sub_items')
+    return payment
+
+def write_invoices_and_update_db(invoices, sefton_payments, batch_number, folder):    
     year = datetime.now().strftime("%Y")
     if invoice.objects.filter(year=year, batch_number=batch_number):
         raise ValueError(f'There already exist entries in the database for batch number {batch_number} in {year}')
 
+    pathlib.Path(folder).mkdir(parents=True, exist_ok=True)
+
     for invoice_data in invoices:
         write_inovice(folder, **invoice_data) # Write invoice file locally
-        invoice(**extract_invoice_args_for_db(invoice_data, batch_number, folder)).save() # Save invoices to the database
+        invoice(**extract_invoice_args_for_db(invoice_data, folder)).save() # Save invoices to the database
+    for payment in sefton_payments:
+        sefton_payment(**extract_payment_args_for_db(payment)).save()
 
     make_archive(folder, "zip", folder)
 
@@ -180,6 +190,8 @@ def get_or_add_resident(res_name, sefton_id, current=True, save=True):
             if save:
                 print(f'New resident added: {res.name} - {res.customer_ref_no}\n')
                 res.save()
+            else:
+                print(f'New resident: {res.name} - {res.customer_ref_no}, NOT SAVED!\n')
     if res.private:
         print(f'The private resident {res.name} has been added to the Sefton remittance advice\n')
     return res
