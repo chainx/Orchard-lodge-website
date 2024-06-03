@@ -14,16 +14,12 @@ from django.conf import settings
 from main.models import resident, invoice, payment, sefton_payment
 
 from backend.payments import match_payments_to_resident
-from backend.invoices import read_and_format_sefton_csv, get_or_add_resident, get_invoice_data_from_sefton_csv
+from backend.invoices import read_and_format_sefton_csv, get_or_add_resident, get_invoice_data_from_sefton_csv, generate_unique_customer_reference_number
 from backend.file_utils import file_num, gather_sefton_remittance_advice
 
 def add_customer_reference_numbers(ref_no_length):
     for res in resident.objects.filter(customer_ref_no=''):
-        while True:
-            customer_ref_no = ''.join([str(randint(0, 9)) for n in range(ref_no_length)])
-            if not resident.objects.filter(customer_ref_no=customer_ref_no):
-                break # Keep generating customer reference numbers until a unique one is generated
-        res.customer_ref_no = customer_ref_no
+        res.customer_ref_no = generate_unique_customer_reference_number()
         res.save()
 
 def add_year_and_batch_no_to_invoice_table():
