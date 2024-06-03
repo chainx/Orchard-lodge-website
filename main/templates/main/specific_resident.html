@@ -132,6 +132,31 @@
     </div>
 {% endif %}
 
+<h3 class="header">Sefton payments for {{res.name}}</h3>
+    <div class="column invoice">
+        <table class="table table-bordered table-striped table-sm" id="Sefton-payments">
+            <thead>
+                <tr>
+                    <th>Batch #</th>
+                    <th>Date</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody">
+                {% for payment in sefton_payments %}
+                    <tr id="Sefton-Payment-{{payment.id}}">
+                        <td>{{payment.batch_number}}</td>
+                        <td>{{payment.date}}</td>
+                        <td>{{payment.str_total}}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+<!-- {% if accepted_matches %} -->
+<!-- {% endif %} -->
+
 {% endblock %}
 
 

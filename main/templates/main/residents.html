@@ -7,7 +7,8 @@ Residents page
 
 {% block content %}
 
-<h3 style="margin-bottom: 20px">Resident dashboard</h3>
+<h3 style="margin-bottom: 20px">Current resident dashboard</h3>
+<p style="margin-bottom: 20px">In this dashboard and the dashboard below, any <b>invoices and payments from before April 2023 are ignored!</b></p>
 <table class="table table-bordered table-striped table-sm" id="resident-info">
     <thead>
         <tr>
@@ -17,11 +18,12 @@ Residents page
             <th>Payments Received</th>
             <th>Total Payed</th>
             <th>Total Owed</th>
+            <th>Total Payed By Sefton</th>
         </tr>
     </thead>
     <tbody>
-        <tr style="background-color: darkgrey"><td colspan="6" class="title"><b>Current residents with personal contributions</b></td></tr>
-        {% for res, invoice_no, invoice_total, payment_no, payment_total, owed in resident_info_table %}
+        <tr style="background-color: darkgrey"><td colspan="7" class="title"><b>Current residents with personal contributions</b></td></tr>
+        {% for res, invoice_no, invoice_total, payment_no, payment_total, owed, sefton_payment_total in resident_info_table %}
             <tr id="{{res.name}}">
                 <td><a href="/residents/{{res.url}}">{{res.name}}</a></td>
                 <td>{{invoice_no}}</td>
@@ -29,10 +31,11 @@ Residents page
                 <td>{{payment_no}}</td>
                 <td>{{payment_total}}</td>
                 <td>{{owed}}</td>
+                <td>{{sefton_payment_total}}</td>
             </tr>
         {% endfor %}
-        <tr style="background-color: darkgrey"><td colspan="6" class="title"><b>Current private residents</b></td></tr>
-        {% for res, invoice_no, invoice_total, payment_no, payment_total, owed in private_resident_info_table %}
+        <tr style="background-color: darkgrey"><td colspan="7" class="title"><b>Current private residents</b></td></tr>
+        {% for res, invoice_no, invoice_total, payment_no, payment_total, owed, sefton_payment_total in private_resident_info_table %}
             <tr id="{{res.name}}">
                 <td><a href="/residents/{{res.url}}">{{res.name}}</a></td>
                 <td>{{invoice_no}}</td>
@@ -40,17 +43,14 @@ Residents page
                 <td>{{payment_no}}</td>
                 <td>{{payment_total}}</td>
                 <td>{{owed}}</td>
+                <td>{{sefton_payment_total}}</td>
             </tr>
         {% endfor %}
     </tbody>
 </table>
 
+<h3 style="margin-bottom: 20px">New resident form</h3>
 <p>Fill in the form below to add a new resident.</p>
-<!-- <form method="post" class="form-group">
-    {% csrf_token %}
-    {{form|crispy}}
-    <button type="submit" class="btn btn-primary">Submit</button>
-</form> -->
 <form method="post" class="form-group">
     {% csrf_token %}
     <input type="hidden" name="form_type" value="Updating resident info">
@@ -75,6 +75,7 @@ Residents page
 </form>
 
 <h3 style="margin-bottom: 20px">Dashboard for recently left residents</h3>
+<p style="margin-bottom: 20px">In this dashboard a resident is considered to have "recently left" if they left any time during 2023 or after.</p>
 <table class="table table-bordered table-striped table-sm" id="resident-info">
     <thead>
         <tr>
@@ -84,12 +85,13 @@ Residents page
             <th>Payments Received</th>
             <th>Total Payed</th>
             <th>Total Owed</th>
+            <th>Total Payed By Sefton</th>
             <th>Date Left</th>
         </tr>
     </thead>
     <tbody>
-        <tr style="background-color: darkgrey"><td colspan="7" class="title"><b>Recently left residents</b></td></tr>
-        {% for res, invoice_no, invoice_total, payment_no, payment_total, owed, date_left in recent_resident_info_table %}
+        <tr style="background-color: darkgrey"><td colspan="8" class="title"><b>Recently left residents</b></td></tr>
+        {% for res, invoice_no, invoice_total, payment_no, payment_total, owed, sefton_payment_total, date_left in recent_resident_info_table %}
             <tr id="{{res.name}}">
                 <td><a href="/residents/{{res.url}}">{{res.name}}</a></td>
                 <td>{{invoice_no}}</td>
@@ -97,6 +99,7 @@ Residents page
                 <td>{{payment_no}}</td>
                 <td>{{payment_total}}</td>
                 <td>{{owed}}</td>
+                <td>{{sefton_payment_total}}</td>
                 <td>{{date_left}}</td>
             </tr>
         {% endfor %}

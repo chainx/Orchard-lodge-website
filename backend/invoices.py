@@ -175,7 +175,8 @@ def read_and_format_sefton_csv(filename):
     
     return df, payment_period
 
-def get_or_add_resident(res_name, sefton_id, current=True, save=True):
+def get_or_add_resident(res_name, sefton_id=None, current=True, private=False, save=True):
+    new_res_created = False
     try:
         res = resident.objects.get(sefton_id=sefton_id)
     except:
@@ -183,16 +184,17 @@ def get_or_add_resident(res_name, sefton_id, current=True, save=True):
         if res := get_residents_with_similar_name(first, last):
             pass
         else:
+            new_res_created = True
             res = resident(title=title, first=first, last=last, sefton_id=sefton_id)
             res.current = current
-            res.private = False
+            res.private = private
             res.customer_ref_no = generate_unique_customer_reference_number()
             if save:
                 print(f'New resident added: {res.name} - {res.customer_ref_no}\n')
                 res.save()
             else:
                 print(f'New resident: {res.name} - {res.customer_ref_no}, NOT SAVED!\n')
-    if res.private:
+    if res.private and not new_res_created:
         print(f'The private resident {res.name} has been added to the Sefton remittance advice\n')
     return res
 
