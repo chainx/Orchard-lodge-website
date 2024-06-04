@@ -1,21 +1,27 @@
+Specific resident's page:
+    -Add start and leave date to residents page with the ability to modify
+    -Javascript code to vary cutoff date when matching invoices and payments
+    -Update drag and drop functionality to allow matching multiple payments to a single invoice
+    -Functionality to mark as obsolete, modify, view and download each invoice
+
+Remittance advice page:
+    -Add a page for each remittance advice batch
+    -Show table summarising personal and Sefton contributions for everyone in the remittance advice
+    -Flag any missing residents, private residents on the remittance advice, and other oddities
+
+Residents page:
+    -Add totals row and indices to resident dashboard table
+    -Add global variable to modify cutoff date and form to modify it
+
+Upload page:
+    -Functionality to upload invoice and extract info from invoice + checksum
+    -Functionality to add cash / cheque payments (even those that don't exist yet)
+
+-Use scraped data to find which invoices have been manually edited (checksum)
+-Allow for modification to invoices from Sefton before writing to DB
+
 Home page:
     -Give list of outstanding invoices and unmatched payments, redirect to resident's page
     -List matched invoices and payments where the checksum fails
     -Download link for most recent batch of invoices
-    -Add global variable to show last bank statement download date
-
-Residents page:
-    -Add start and leave date to residents page with the ability to modify
-    -Add totals row to resident summary page
-    -Add global variable to modify cutoff date and form to modify it
-
-Specific resident's page:
-    -Functionality to mark as obsolete, modify, view and download each invoice
-    -Add Sefton payments for each payment period
-
-Upload page:
-    -Functionality to upload invoice and extract info from invoice + checksum
-   
--Functionality to add cash / cheque payments (even those that don't exist yet)
--Use scraped data to find which invoices have been manually edited (checksum)
--Allow for modification to invoices from Sefton before writing to DB
+    -Add global variable to show last bank statement download date, only users with elevated privilleges

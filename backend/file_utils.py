@@ -48,3 +48,6 @@ def gather_all_invoices_for_resident(first_name, last_name):
                 files_to_copy = [file for file in os.listdir(file_path) if first_name in file and last_name in file]
                 for file in files_to_copy:
                     shutil.copyfile(os.path.join(file_path, file), os.path.join(destination_path, file))
+
+# if __name__=='__main__':
+#     gather_all_invoices_for_resident(first_name, last_name)
