@@ -15,8 +15,8 @@ SERVER_ADDRESS, SERVER_PORT = 'smtp-mail.outlook.com', 587
 
 def send_email():
     path = latest_filename(settings.MEDIA_INVOICES)
-    Email_details = settings.EMAIL_DETAILS
-    
+    Email_details = json.load(open('/home/chainx/Documents/Orchard lodge accounting data (PRIVATE)/Email_details.json'))
+
     msg = MIMEMultipart()
     msg.attach(MIMEText(Email_details['MESSAGE']))
     msg['From'] = Email_details['EMAIL_ADDRESS']

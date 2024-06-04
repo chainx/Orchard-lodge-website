@@ -1,10 +1,10 @@
-from datetime import date
+import datetime
 
 from django.db import models
 from django.core.validators import MinLengthValidator
 
 # For the purposes of the resident dashboard, invoices and payments before the CUT_OFF date aren't considered
-CUTOFF_DATE = date(2023, 3, 18)
+CUTOFF_DATE = datetime.date(2023, 3, 18) # datetime.strptime(settings.CUTOFF_DATE, '%Y-%m-%d').date()
 
 class resident(models.Model):
     title = models.CharField(max_length=8)
