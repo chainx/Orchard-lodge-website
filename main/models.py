@@ -12,7 +12,7 @@ class resident(models.Model):
     last = models.CharField(max_length=32)
     customer_ref_no = models.CharField(max_length=6, default='', blank=True, null=True)
     sefton_id = models.CharField(max_length=32, blank=True, null=True)
-    current = models.BooleanField(default=False)
+    current = models.BooleanField(default=True)
     private = models.BooleanField(default=False)
     private_rate = models.IntegerField(default=0, blank=True, null=True)
     filters = models.CharField(max_length=256, default='', blank=True, null=True)
@@ -63,7 +63,7 @@ class payment(models.Model):
 
     @property
     def str_amount(self):
-        return u'\u00A3' + f'{self.amount/100:.2f}'
+        return u'\u00A3' + f'{self.amount/100:,.2f}'
     
     @property
     def cleaned_description(self):
@@ -91,7 +91,7 @@ class invoice(models.Model):
     
     @property
     def str_total(self):
-        return u'\u00A3' + f'{self.total/100:.2f}'
+        return u'\u00A3' + f'{self.total/100:,.2f}'
 
     def __str__(self):
         return str(self.filename)
@@ -106,7 +106,7 @@ class sefton_payment(models.Model):
     
     @property
     def str_total(self):
-        return u'\u00A3' + f'{self.total/100:.2f}'
+        return u'\u00A3' + f'{self.total/100:,.2f}'
     
 class sefton_login_details(models.Model):
     email = models.CharField(max_length=256, blank=True, null=True)

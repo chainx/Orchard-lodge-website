@@ -14,7 +14,7 @@ from .models import resident, invoice, payment
 
 from backend.file_utils import file_num, latest_filename, latest_filenum
 from backend.get_sefton_data import get_remittance_advice
-from backend.invoices import get_invoice_data_from_sefton_csv, write_invoices_and_update_db
+from backend.invoices import get_invoice_data_from_sefton_csv, write_invoices_and_update_db, generate_unique_customer_reference_number
 from backend.payments import match_payments_to_resident
 from backend.send_emails import send_email
 
@@ -91,7 +91,10 @@ def residents(request):
         }
 
         if request.method=='POST':
-            form = ResidentForm(request.POST)
+            post_data = request.POST.copy()  # Make the POST data mutable
+            post_data['customer_ref_no'] = generate_unique_customer_reference_number()
+            post_data['current'] = True
+            form = ResidentForm(post_data)
             if form.is_valid():
                 form.save()
                 return redirect('/residents')

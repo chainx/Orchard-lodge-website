@@ -11,19 +11,26 @@
 {% endblock %}
 
 {% block content %}
-<h3 class="header">Information about {{res.name}}</h3>
+<h3 class="header">Information about {{res.name}} (customer reference number: {{res.customer_ref_no}})</h3>
 <p>Resident information can be edited here. Please double check any edits before clicking the submit button.</p>
 
 <form method="post" class="form-group">
     {% csrf_token %}
     <input type="hidden" name="form_type" value="Updating resident info">
     <div class="container">
-        <div class="row">
+        <div class="row", style="margin-bottom: 5px">
             <div class="col-sm-1.5"><b>{{resident_form.title.label_tag}}</b>  {{resident_form.title}}</div>
             <div class="col-sm-3"><b>{{resident_form.first.label_tag}}</b>  {{resident_form.first}}</div>
             <div class="col-sm-2.5"><b>{{resident_form.last.label_tag}}</b>  {{resident_form.last}}</div>
         </div>
-        <div class="row">
+        <div class="row", style="margin-bottom: 5px">
+            <div class="col-sm-4"><b>{{resident_form.start_date.label_tag}}</b>  {{resident_form.start_date}}</div>
+            <div class="col-sm-4"><b>{{resident_form.leave_date.label_tag}}</b>  {{resident_form.leave_date}}</div>
+        </div>
+        <div class="row", style="margin-bottom: 5px">
+            <div class="col-sm"><b>{{resident_form.filters.label_tag}}</b>  {{resident_form.filters}}</div>
+        </div>
+        <div class="row", style="margin-bottom: 5px">
             <div class="col-sm-2"><b>{{resident_form.current.label_tag}}</b>  {{resident_form.current}}</div>
             <div class="col-sm-2"><b>{{resident_form.private.label_tag}}</b>  {{resident_form.private}}</div>
             {% if res.private %}
@@ -31,7 +38,6 @@
             {% endif %}
         </div>
         <div class="row">
-            <div class="col-sm"><b>{{resident_form.filters.label_tag}}</b>  {{resident_form.filters}}</div>
             <button type="submit" class="col-sm-4 btn btn-primary">Update resident information</button>
         </div>
     </div>    

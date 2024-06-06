@@ -55,23 +55,25 @@ Residents page
     {% csrf_token %}
     <input type="hidden" name="form_type" value="Updating resident info">
     <div class="container">
-        <div class="row">
+        <div class="row", style="margin-bottom: 5px">
             <div class="col-sm-1.5"><b>{{resident_form.title.label_tag}}</b>  {{resident_form.title}}</div>
             <div class="col-sm-3"><b>{{resident_form.first.label_tag}}</b>  {{resident_form.first}}</div>
             <div class="col-sm-2.5"><b>{{resident_form.last.label_tag}}</b>  {{resident_form.last}}</div>
         </div>
-        <div class="row">
-            <div class="col-sm-2"><b>{{resident_form.current.label_tag}}</b>  {{resident_form.current}}</div>
-            <div class="col-sm-2"><b>{{resident_form.private.label_tag}}</b>  {{resident_form.private}}</div>
-            {% if res.private %}
-                <div class="col-sm-3"><b>{{resident_form.private_rate.label_tag}}</b>  {{resident_form.private_rate}}</div>
-            {% endif %}
+        <div class="row", style="margin-bottom: 5px">
+            <div class="col-sm-4"><b>{{resident_form.start_date.label_tag}}</b>  {{resident_form.start_date}}</div>
+        </div>
+        <div class="row", style="margin-bottom: 5px">
+            <div class="col-sm"><b>{{resident_form.filters.label_tag}}</b>  {{resident_form.filters}}</div>
+        </div>
+        <div class="row", style="margin-bottom: 5px">
+            <div class="col-sm-1.5"><b>{{resident_form.private.label_tag}}</b>  {{resident_form.private}}</div>
+            <div class="col-sm-3"><b>{{resident_form.private_rate.label_tag}}</b>  {{resident_form.private_rate}}</div>
         </div>
         <div class="row">
-            <div class="col-sm"><b>{{resident_form.filters.label_tag}}</b>  {{resident_form.filters}}</div>
             <button type="submit" class="col-sm-4 btn btn-primary">Add new resident</button>
         </div>
-    </div>    
+    </div> 
 </form>
 
 <h3 style="margin-bottom: 20px">Dashboard for recently left residents</h3>
