@@ -8,14 +8,19 @@ from email.mime.text import MIMEText
 import os
 import json
 
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+import django
+django.setup()
 from django.conf import settings
+
 from backend.file_utils import latest_filename
 
 SERVER_ADDRESS, SERVER_PORT = 'smtp-mail.outlook.com', 587
 
 def send_email():
     path = latest_filename(settings.MEDIA_INVOICES)
-    Email_details = json.load(open('/home/chainx/Documents/Orchard lodge accounting data (PRIVATE)/Email_details.json'))
+    Email_details = json.load(open(settings.SECRET_MEDIA_ROOT / 'Email_details.json'))
 
     msg = MIMEMultipart()
     msg.attach(MIMEText(Email_details['MESSAGE']))
