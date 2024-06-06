@@ -19,7 +19,7 @@ import django
 django.setup()
 from django.conf import settings
 
-LOGIN_DETAILS = json.load(open('/home/chainx/Documents/Orchard lodge accounting data (PRIVATE)/Santander_login.json'))
+LOGIN_DETAILS = json.load(open(settings.SECRET_MEDIA_ROOT / 'Santander_login.json'))
 
 COOKIE_DIR = LOGIN_DETAILS['SANTANDER_COOKIE_DIR']
 AGENT_STRING = LOGIN_DETAILS["AGENT_STRING"]
