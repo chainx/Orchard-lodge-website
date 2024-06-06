@@ -1,5 +1,4 @@
 Specific resident's page:
-    -Add start and leave date to residents page with the ability to modify
     -Javascript code to vary cutoff date when matching invoices and payments
     -Update drag and drop functionality to allow matching multiple payments to a single invoice
     -Functionality to mark as obsolete, modify, view and download each invoice
@@ -11,6 +10,7 @@ Remittance advice page:
 
 Residents page:
     -Add totals row and indices to resident dashboard table
+    -Add Javascript to reorder dashboard table by total owed, or by last name
     -Add global variable to modify cutoff date and form to modify it
 
 Upload page:
