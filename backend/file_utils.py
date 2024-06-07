@@ -32,16 +32,16 @@ def gather_sefton_remittance_advice(from_year='2013'):
     remittance_advice_files = []
     years = [year for year in sorted(os.listdir(settings.MEDIA_REMITTANCE)) if year >= from_year]
     for year in years:
-        dir = os.path.join(settings.MEDIA_REMITTANCE, year)
+        dir = settings.MEDIA_REMITTANCE / year
         filenames = sorted(os.listdir(dir), key=file_num)
         remittance_advice_files += [os.path.join(dir, filename) for filename in filenames if '.csv' in filename]
     return remittance_advice_files
 
 def gather_all_invoices_for_resident(first_name, last_name):
-    destination_path = os.path.join(settings.MEDIA_INVOICES, f'{first_name}_{last_name}')
+    destination_path = settings.MEDIA_INVOICES / f'{first_name}_{last_name}'
     os.mkdir(destination_path)
     for year in sorted([year for year in os.listdir(settings.MEDIA_INVOICES) if len(year)==4]):
-        invoice_batches = sorted(os.listdir(os.path.join(settings.MEDIA_INVOICES, year)), key=file_num)
+        invoice_batches = sorted(os.listdir(settings.MEDIA_INVOICES/ year), key=file_num)
         for invoice_batch in invoice_batches:
             if '.zip' not in invoice_batch and 'OBSOLETE' not in invoice_batch:
                 file_path = os.path.join(settings.MEDIA_INVOICES, year, invoice_batch)
