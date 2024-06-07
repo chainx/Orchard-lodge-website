@@ -12,6 +12,7 @@ Residents page
 <table class="table table-bordered table-striped table-sm" id="resident-info">
     <thead>
         <tr>
+            <th></th>
             <th>Resident</th>
             <th>Invoices Issued</th>
             <th>Invoice Total</th>
@@ -22,28 +23,30 @@ Residents page
         </tr>
     </thead>
     <tbody>
-        <tr style="background-color: darkgrey"><td colspan="7" class="title"><b>Current residents with personal contributions</b></td></tr>
-        {% for res, invoice_no, invoice_total, payment_no, payment_total, owed, sefton_payment_total in resident_info_table %}
-            <tr id="{{res.name}}">
-                <td><a href="/residents/{{res.url}}">{{res.name}}</a></td>
-                <td>{{invoice_no}}</td>
-                <td>{{invoice_total}}</td>
-                <td>{{payment_no}}</td>
-                <td>{{payment_total}}</td>
-                <td>{{owed}}</td>
-                <td>{{sefton_payment_total}}</td>
+        <tr style="background-color: darkgrey"><td colspan="8" class="title"><b>Current residents with personal contributions</b></td></tr>
+        {% for row in resident_info_table %}
+            <tr id="{% if row.res != 'Total' %}{{row.res.name}}{% else %}total-row{% endif %}">
+                <td>{{row.index}}</td>
+                <td>{% if row.res != 'Total' %}<a href="/residents/{{row.res.url}}">{{row.res.name}}</a>{% else %}<b>Total</b>{% endif %}</td>                
+                <td>{% if row.res == 'Total' %}<b>{{row.invoice_no}}</b>{% else %}{{row.invoice_no}}{% endif %}</td>
+                <td>{% if row.res == 'Total' %}<b>{{row.invoice_total}}</b>{% else %}{{row.invoice_total}}{% endif %}</td>
+                <td>{% if row.res == 'Total' %}<b>{{row.payment_no}}</b>{% else %}{{row.payment_no}}{% endif %}</td>
+                <td>{% if row.res == 'Total' %}<b>{{row.payment_total}}</b>{% else %}{{row.payment_total}}{% endif %}</td>
+                <td>{% if row.res == 'Total' %}<b>{{row.owed}}</b>{% else %}{{row.owed}}{% endif %}</td>
+                <td>{% if row.res == 'Total' %}<b>{{row.sefton_payment_total}}</b>{% else %}{{row.sefton_payment_total}}{% endif %}</td>
             </tr>
         {% endfor %}
-        <tr style="background-color: darkgrey"><td colspan="7" class="title"><b>Current private residents</b></td></tr>
-        {% for res, invoice_no, invoice_total, payment_no, payment_total, owed, sefton_payment_total in private_resident_info_table %}
-            <tr id="{{res.name}}">
-                <td><a href="/residents/{{res.url}}">{{res.name}}</a></td>
-                <td>{{invoice_no}}</td>
-                <td>{{invoice_total}}</td>
-                <td>{{payment_no}}</td>
-                <td>{{payment_total}}</td>
-                <td>{{owed}}</td>
-                <td>{{sefton_payment_total}}</td>
+        <tr style="background-color: darkgrey"><td colspan="8" class="title"><b>Current private residents</b></td></tr>
+        {% for row in private_resident_info_table %}
+            <tr id="{% if row.res != 'Total' %}{{row.res.name}}{% else %}total-row{% endif %}">
+                <td>{{row.index}}</td>
+                <td>{% if row.res != 'Total' %}<a href="/residents/{{row.res.url}}">{{row.res.name}}</a>{% else %}<b>Total</b>{% endif %}</td>                
+                <td>{% if row.res == 'Total' %}<b>{{row.invoice_no}}</b>{% else %}{{row.invoice_no}}{% endif %}</td>
+                <td>{% if row.res == 'Total' %}<b>{{row.invoice_total}}</b>{% else %}{{row.invoice_total}}{% endif %}</td>
+                <td>{% if row.res == 'Total' %}<b>{{row.payment_no}}</b>{% else %}{{row.payment_no}}{% endif %}</td>
+                <td>{% if row.res == 'Total' %}<b>{{row.payment_total}}</b>{% else %}{{row.payment_total}}{% endif %}</td>
+                <td>{% if row.res == 'Total' %}<b>{{row.owed}}</b>{% else %}{{row.owed}}{% endif %}</td>
+                <td>{% if row.res == 'Total' %}<b>{{row.sefton_payment_total}}</b>{% else %}{{row.sefton_payment_total}}{% endif %}</td>
             </tr>
         {% endfor %}
     </tbody>
@@ -81,6 +84,7 @@ Residents page
 <table class="table table-bordered table-striped table-sm" id="resident-info">
     <thead>
         <tr>
+            <th></th>
             <th>Resident</th>
             <th>Invoices Issued</th>
             <th>Invoice Total</th>
@@ -92,17 +96,18 @@ Residents page
         </tr>
     </thead>
     <tbody>
-        <tr style="background-color: darkgrey"><td colspan="8" class="title"><b>Recently left residents</b></td></tr>
-        {% for res, invoice_no, invoice_total, payment_no, payment_total, owed, sefton_payment_total, date_left in recent_resident_info_table %}
-            <tr id="{{res.name}}">
-                <td><a href="/residents/{{res.url}}">{{res.name}}</a></td>
-                <td>{{invoice_no}}</td>
-                <td>{{invoice_total}}</td>
-                <td>{{payment_no}}</td>
-                <td>{{payment_total}}</td>
-                <td>{{owed}}</td>
-                <td>{{sefton_payment_total}}</td>
-                <td>{{date_left}}</td>
+        <tr style="background-color: darkgrey"><td colspan="9" class="title"><b>Recently left residents</b></td></tr>
+        {% for row in recent_resident_info_table %}
+            <tr id="{% if row.res != 'Total' %}{{row.res.name}}{% else %}total-row{% endif %}">
+                <td>{{row.index}}</td>
+                <td>{% if row.res != 'Total' %}<a href="/residents/{{row.res.url}}">{{row.res.name}}</a>{% else %}<b>Total</b>{% endif %}</td>                
+                <td>{% if row.res == 'Total' %}<b>{{row.invoice_no}}</b>{% else %}{{row.invoice_no}}{% endif %}</td>
+                <td>{% if row.res == 'Total' %}<b>{{row.invoice_total}}</b>{% else %}{{row.invoice_total}}{% endif %}</td>
+                <td>{% if row.res == 'Total' %}<b>{{row.payment_no}}</b>{% else %}{{row.payment_no}}{% endif %}</td>
+                <td>{% if row.res == 'Total' %}<b>{{row.payment_total}}</b>{% else %}{{row.payment_total}}{% endif %}</td>
+                <td>{% if row.res == 'Total' %}<b>{{row.owed}}</b>{% else %}{{row.owed}}{% endif %}</td>
+                <td>{% if row.res == 'Total' %}<b>{{row.sefton_payment_total}}</b>{% else %}{{row.sefton_payment_total}}{% endif %}</td>
+                <td>{% if row.res != 'Total' %}{{row.leave_date}}{% endif %}</td>
             </tr>
         {% endfor %}
     </tbody>

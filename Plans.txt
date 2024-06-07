@@ -9,7 +9,6 @@ Remittance advice page:
     -Flag any missing residents, private residents on the remittance advice, and other oddities
 
 Residents page:
-    -Add totals row and indices to resident dashboard table
     -Add Javascript to reorder dashboard table by total owed, or by last name
     -Add global variable to modify cutoff date and form to modify it
 

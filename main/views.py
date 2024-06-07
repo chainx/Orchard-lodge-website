@@ -1,4 +1,5 @@
 import os
+import pandas as pd
 from datetime import datetime, date
 import mimetypes
 from zipfile import ZipFile
@@ -68,17 +69,34 @@ def str_total(total):
     return u'\u00A3' + f'{total/100:,.2f}'
 
 def compile_resident_table(residents, include_date_left=False):
-    resident_table = []
+    columns = ['index', 'res', 'invoice_no', 'invoice_total', 'payment_no', 'payment_total', 'owed', 'sefton_payment_total']
+    summable_cols = columns[2:]
+    if include_date_left:
+            columns.insert(2, 'leave_date')
+    
+    resident_table = pd.DataFrame(columns=columns)
+
     resident_list = sorted(list(residents), key = lambda x: x.total_owed(), reverse=True)
-    for res in resident_list:
+    for index, res in enumerate(resident_list):
         row = [
-            res, res.len_invoices(), str_total(res.total_invoiced()), res.len_payments(), 
-            str_total(res.total_payed()), str_total(res.total_owed()), str_total(res.total_sefton_payed())
+            index+1, res, res.len_invoices(), res.total_invoiced(), res.len_payments(), 
+            res.total_payed(), res.total_owed(), res.total_sefton_payed()
         ]
         if include_date_left:
-            row.append(res.leave_date)
-        resident_table.append(row)
-    return resident_table
+            row.insert(2, res.leave_date)
+        resident_table.loc[len(resident_table)] = row
+
+    totals_row = [resident_table[col].sum() for col in summable_cols]
+    if include_date_left:
+        totals_row = ['', 'Total', pd.NaT] + totals_row
+    else:
+        totals_row = ['', 'Total'] + totals_row
+    resident_table.loc[len(resident_table)] = totals_row
+
+    for col in ['invoice_total', 'payment_total', 'owed', 'sefton_payment_total']:
+        resident_table[col] = resident_table[col].apply(str_total)
+    
+    return resident_table.to_dict(orient='records')
 
 def residents(request):
     if request.user.is_authenticated:

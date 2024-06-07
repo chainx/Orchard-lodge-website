@@ -18,6 +18,8 @@ from django.conf import settings
 from main.models import resident, invoice, sefton_payment
 
 def main():
+    get_remittance_advice()
+
     latest_remittance = latest_filename(settings.MEDIA_REMITTANCE)
     invoices, sefton_payments, batch_number, folder = get_invoice_data_from_sefton_csv(latest_remittance)
     
@@ -33,7 +35,7 @@ def main():
 
 def write_inovice(folder, date, Resident, sub_items, total, invoice_number, batch_number=None):
 
-    document = Document(os.path.join(settings.MEDIA_INVOICES, 'INVOICE TEMPLATE.docx'))
+    document = Document(settings.MEDIA_INVOICES / 'INVOICE TEMPLATE.docx')
 
     for paragraph in document.paragraphs:
         text_fields = {
