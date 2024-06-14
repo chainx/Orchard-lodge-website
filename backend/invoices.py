@@ -83,16 +83,18 @@ def get_invoice_data_from_sefton_csv(filename, save_new_residents=True): # Obtai
         res_name, sefton_id = df_row['FormattedName'], df_row['Sefton ID']
         res = get_or_add_resident(res_name, sefton_id, save=save_new_residents)
 
+        invoice_total = 0 # Subtracted from Sefton cost to find total paid by Sefton
         if inv := compile_personal_contributions_and_sefton_payments(res, df, batch_number, date, invoice_number, cost_or_income=1):
             invoice_number = "%05d" % (int(invoice_number)+1)
+            invoice_total = inv['total']
             invoices.append(inv)
-        if payment := compile_personal_contributions_and_sefton_payments(res, df, batch_number, payment_period, cost_or_income=0):
+        if payment := compile_personal_contributions_and_sefton_payments(res, df, batch_number, payment_period, cost_or_income=0, invoice_total=invoice_total):
             sefton_payments.append(payment)
     
     invoices += compile_invoices_for_private_residents(payment_period, batch_number, date, invoice_number)
     return invoices, sefton_payments, batch_number, folder
 
-def compile_personal_contributions_and_sefton_payments(res, df, batch_number, date, invoice_number=None, cost_or_income=1):
+def compile_personal_contributions_and_sefton_payments(res, df, batch_number, date, invoice_number=None, cost_or_income=1, invoice_total=0):
     # cost_or_income = 1 for personal contributions and 0 for Sefton payments
     filt = (df['Sefton ID']==res.sefton_id) & (df['IsIncome']==cost_or_income)
     if not df.loc[filt].empty:
@@ -100,7 +102,7 @@ def compile_personal_contributions_and_sefton_payments(res, df, batch_number, da
             'Resident': res,
             'date' : date,
             'sub_items' : df.loc[filt][['Amount', 'PaymentItemDates', 'AdjustmentLabel']],
-            'total' : round(df.loc[filt]['Amount'].sum()*100), # Amounts are stored in pennies in the database
+            'total' : round(df.loc[filt]['Amount'].sum()*100) - invoice_total, # Amounts are stored in pennies in the database
             'batch_number': batch_number
         }
         if invoice_number:
