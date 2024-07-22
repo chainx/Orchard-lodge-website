@@ -61,7 +61,10 @@ def file_manipulation(period_range):
     file_number = len(os.listdir(dir)) // 2 + 1
     filename = f'{file_number}. {period_range}'
     shutil.move(os.path.join(settings.MEDIA_REMITTANCE, 'report_export.csv'), os.path.join(settings.MEDIA_REMITTANCE, year, filename+'.csv'))
-    shutil.move(os.path.join(settings.MEDIA_REMITTANCE, 'ActiveReports.PDF'), os.path.join(settings.MEDIA_REMITTANCE, year, filename+'.PDF'))
+    shutil.move(
+        os.path.join(settings.MEDIA_REMITTANCE, 'Remittance Advice Provider Payments by Period report.pdf'), 
+        os.path.join(settings.MEDIA_REMITTANCE, year, filename+'.PDF')
+    )
     return os.path.join(settings.MEDIA_REMITTANCE, year, filename+'.csv')
 
 

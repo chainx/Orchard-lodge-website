@@ -55,6 +55,7 @@ def get_new_payments(excel_payments, bank='Santander'):
     excel_payments = excel_payments[excel_payments['Money in'].notnull()]
     excel_payments = excel_payments[excel_to_db_cols.keys()]
     excel_payments['Money in'] = excel_payments['Money in'].apply(convert_to_pennies)
+    excel_payments['Description'] = excel_payments['Description'].apply(str.upper)
     excel_payments['Date'] = pd.to_datetime(excel_payments['Date'], format='%d/%m/%Y').dt.date
     excel_payments = excel_payments.rename(columns=excel_to_db_cols )
 
