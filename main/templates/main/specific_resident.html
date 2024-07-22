@@ -59,8 +59,8 @@
                 <tr>
                     <th>Invoice #</th>
                     <th>Batch #</th>
-                    <th>Date</th>
-                    <th>Total</th>
+                    <th>Date Issued</th>
+                    <th>Fees Owed</th>
                 </tr>
             </thead>
             <tbody>
@@ -82,8 +82,8 @@
                     <th>ID</th>
                     <th>Date</th>
                     <th>Description</th>
-                    <th>Amount</th>
-                    <th>Type</th>
+                    <th>Amount Payed</th>
+                    <!-- <th>Type</th> -->
                 </tr>
             </thead>
             <tbody>
@@ -91,9 +91,9 @@
                     <tr id="Payment-{{payment.id}}" ondragover="event.preventDefault()" ondrop="handle_matching(event)">
                         <td>{{payment.id}}</td>
                         <td>{{payment.date}}</td>
-                        <td>{{payment.cleaned_description}}</td>
+                        <td class="payment-description">{{payment.cleaned_description}}</td>
                         <td>{{payment.str_amount}}</td>
-                        <td>{{payment.type}}</td>
+                        <!-- <td>{{payment.type}}</td> -->
                     </tr>
                 {% endfor %}
             </tbody>
@@ -104,7 +104,7 @@
 {% if accepted_matches %}
     <h3 class="header">Matched invoices and payments for {{res.name}}</h3>
     <div id="accepted-matches" class="row">
-        {% for index, payment, invoices in accepted_matches %}
+        {% for index, payment, invoices, _ in accepted_matches %}
             <div class="match-container" id="accepted-match-{{index}}">
                 <div class="column invoice">
                     <table class="table table-bordered table-striped table-sm">
@@ -126,9 +126,9 @@
                             <tr id="Payment-{{payment.id}}" ondragover="event.preventDefault()" ondrop="handle_matching(event)">
                                 <td>{{payment.id}}</td>
                                 <td>{{payment.date}}</td>
-                                <td>{{payment.cleaned_description}}</td>
+                                <td class="payment-description">{{payment.cleaned_description}}</td>
                                 <td>{{payment.str_amount}}</td>
-                                <td>{{payment.type}}</td>
+                                <!-- <td>{{payment.type}}</td> -->
                             </tr>
                         </tbody>
                     </table>
@@ -172,8 +172,21 @@
     document.addEventListener('DOMContentLoaded', function() {
         const accepted_matches = document.getElementById('accepted-matches');
         const header = createMatchHeader();
-        accepted_matches.insertBefore(header, accepted_matches.firstChild);
+        if (accepted_matches) {
+            accepted_matches.insertBefore(header, accepted_matches.firstChild);
+        }
+
+        var descriptionElements = document.getElementsByClassName('payment-description');
+        for (var i = 0; i < descriptionElements.length; i++) {
+            var element = descriptionElements[i];
+            if (element.textContent.length > 40) { 
+                element.style.fontSize = '15px';
+            } if (element.textContent.length > 50){
+                element.style.fontSize = '13px';
+            }
+        }
     });
+
 
     function handle_matching(event) {
         event.preventDefault();

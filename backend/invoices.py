@@ -18,17 +18,12 @@ from django.conf import settings
 from main.models import resident, invoice, sefton_payment
 
 def main():
-    get_remittance_advice()
+    # get_remittance_advice()
 
     latest_remittance = latest_filename(settings.MEDIA_REMITTANCE)
     invoices, sefton_payments, batch_number, folder = get_invoice_data_from_sefton_csv(latest_remittance)
     
-    # for inv in invoices:
-    #     print(inv['invoice_number'], '   ', inv['Resident'].name, ' '*(30 - len(inv['Resident'].name)) + f"£{inv['total']/100:.2f}")
-    # print()
-    # for payment in sefton_payments:
-    #     print(payment['Resident'].name, ' '*(30 - len(payment['Resident'].name)) + f"£{payment['total']/100:.2f}")
-        
+    compile_summary_table(invoices, sefton_payments, folder)
     write_invoices_and_update_db(invoices, sefton_payments, batch_number, folder)
 
 #==================================================================================================================================================================
@@ -98,6 +93,8 @@ def compile_personal_contributions_and_sefton_payments(res, df, batch_number, da
     # cost_or_income = 1 for personal contributions and 0 for Sefton payments
     filt = (df['Sefton ID']==res.sefton_id) & (df['IsIncome']==cost_or_income)
     if not df.loc[filt].empty:
+        if abs(df.loc[filt]['Amount'].sum())<1:
+            return # Don't write invoices for less that £1
         row = {
             'Resident': res,
             'date' : date,
@@ -157,6 +154,15 @@ def write_invoices_and_update_db(invoices, sefton_payments, batch_number, folder
 
     make_archive(folder, "zip", folder)
 
+def compile_summary_table(invoices, sefton_payments, folder):
+    invoices_df = pd.DataFrame(invoices, columns=['Resident', 'total'])
+    payments_df = pd.DataFrame(sefton_payments, columns=['Resident', 'total'])
+    df = pd.merge(invoices_df, payments_df, on='Resident', how='outer')
+    df = df.rename(columns={'total_x': 'Invoice total', 'total_y': 'Sefton contribution'})
+    df[['Invoice total', 'Sefton contribution']] /= 100
+    df.index = df.reset_index(drop=True).index + 1
+    df.to_excel(folder+'.xlsx')
+
 #=============================================   UTILS   =======================================================================================================
 
 def read_and_format_sefton_csv(filename):
@@ -186,7 +192,9 @@ def get_or_add_resident(res_name, sefton_id=None, current=True, private=False, s
     except:
         title, first, last = res_name.split(', ')
         if res := get_residents_with_similar_name(first, last):
-            pass
+            if not res.sefton_id:
+                res.sefton_id = sefton_id
+                res.save()
         else:
             new_res_created = True
             res = resident(title=title, first=first, last=last, sefton_id=sefton_id)

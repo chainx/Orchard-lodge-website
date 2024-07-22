@@ -11,7 +11,7 @@ from django.contrib import messages
 from django.core.files.storage import FileSystemStorage
 
 from .forms import UploadFileForm, ResidentForm
-from .models import resident, invoice, payment
+from .models import resident, invoice, payment, CUTOFF_DATE
 
 from backend.file_utils import file_num, latest_filename, latest_filenum
 from backend.get_sefton_data import get_remittance_advice
@@ -131,14 +131,15 @@ def specific_resident(request, res_url):
         
         data = {
             'res':res,
-            'unmatched_invoices':res.invoice_set.filter(obsolete=False, matched=False).order_by('year', 'batch_number').reverse(),
-            'unmatched_payments':res.payment_set.filter(matched=False).order_by('date').reverse(),
-            'sefton_payments': res.sefton_payment_set.order_by('date').reverse(),
+            'unmatched_invoices':res.invoice_set.filter(obsolete=False, matched=False).order_by('date').filter(date__gte=CUTOFF_DATE),#.reverse(),
+            'unmatched_payments':res.payment_set.filter(matched=False).order_by('date').filter(date__gte=CUTOFF_DATE),#.reverse(),
+            'sefton_payments': res.sefton_payment_set.order_by('date').filter(date__gte=CUTOFF_DATE),#.reverse(),
             'resident_form': ResidentForm(instance=res),
         }
         data['accepted_matches'] = []
-        for index, payment_ in enumerate(res.payment_set.filter(matched=True).order_by('date').reverse()):
-            data['accepted_matches'].append((index, payment_, payment_.invoice_set.all()))
+        for index, payment_ in enumerate(res.payment_set.filter(matched=True)):
+            data['accepted_matches'].append((index, payment_, payment_.invoice_set.all(), payment_.invoice_set.latest('date').date))
+        data['accepted_matches'] = sorted(data['accepted_matches'], key=lambda x: x[-1])
 
         if request.method=='POST' and request.POST['form_type']=='Updating resident info':
             form = ResidentForm(request.POST, instance=res)
