@@ -4,13 +4,22 @@ import json
 
 from OrchardLodge.settings.base import *
 
-MEDIA_ROOT = pathlib.Path('/media/chainx/seagate/Orchard Lodge accounting data')
-MEDIA_URL = '/Invoices/'
-SECRET_MEDIA_ROOT = pathlib.Path('/media/chainx/seagate/Orchard lodge accounting data (PRIVATE)')
+linux_or_windows = 'windows' if os.name=='nt' else 'linux'
+if linux_or_windows == 'linux':
+    ROOT =  pathlib.Path('/media/chainx/seagate/')
+elif linux_or_windows =='windows':
+    ROOT = pathlib.Path('D:/')
+else:
+    raise ValueError(f'Unexpected operating system {os.name}')
 
-MEDIA_INVOICES = Path(os.path.join(MEDIA_ROOT, 'Invoices'))
-MEDIA_REMITTANCE = Path(os.path.join(MEDIA_ROOT, 'Remittance advice'))
-MEDIA_PAYMENTS = Path(os.path.join(MEDIA_ROOT, 'Bank statements'))
+MEDIA_ROOT = ROOT / 'Orchard Lodge accounting data'
+SECRET_MEDIA_ROOT = ROOT / 'Orchard lodge accounting data (PRIVATE)'
+
+MEDIA_URL = '/Invoices/'
+
+MEDIA_INVOICES = MEDIA_ROOT / 'Invoices'
+MEDIA_REMITTANCE = MEDIA_ROOT / 'Remittance advice'
+MEDIA_PAYMENTS = MEDIA_ROOT / 'Bank statements'
 
 secret_settings = json.load(open(MEDIA_ROOT / 'Production_settings.json'))
 
