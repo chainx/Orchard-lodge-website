@@ -40,7 +40,7 @@ FILE_FORMAT_DICT = { # These file format values were obtained from the HTML of t
 options = Options()
 options.add_argument("user-data-dir="+COOKIE_DIR)
 options.add_experimental_option("prefs", {
-    "download.default_directory": os.path.join(settings.MEDIA_PAYMENTS, 'Santander')
+    "download.default_directory": settings.MEDIA_PAYMENTS / 'Santander'
 })
 
 def main():
