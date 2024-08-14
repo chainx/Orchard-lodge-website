@@ -21,7 +21,7 @@ from django.conf import settings
 
 LOGIN_DETAILS = json.load(open(settings.SECRET_MEDIA_ROOT / 'Santander_login.json'))
 
-COOKIE_DIR = LOGIN_DETAILS['SANTANDER_COOKIE_DIR']
+COOKIE_DIR = str(settings.MEDIA_ROOT / LOGIN_DETAILS['SANTANDER_COOKIE_DIR'])
 AGENT_STRING = LOGIN_DETAILS["AGENT_STRING"]
 BANK_DETAILS = LOGIN_DETAILS['BANK_DETAILS']
 PID = BANK_DETAILS["PID"]
@@ -40,7 +40,7 @@ FILE_FORMAT_DICT = { # These file format values were obtained from the HTML of t
 options = Options()
 options.add_argument("user-data-dir="+COOKIE_DIR)
 options.add_experimental_option("prefs", {
-    "download.default_directory": settings.MEDIA_PAYMENTS / 'Santander'
+    "download.default_directory": str(settings.MEDIA_PAYMENTS / 'Santander')
 })
 
 def main():
