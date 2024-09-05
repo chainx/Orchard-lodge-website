@@ -18,7 +18,7 @@ from django.conf import settings
 from main.models import resident, invoice, sefton_payment
 
 def main():
-    # get_remittance_advice()
+    get_remittance_advice()
 
     latest_remittance = latest_filename(settings.MEDIA_REMITTANCE)
     invoices, sefton_payments, batch_number, folder = get_invoice_data_from_sefton_csv(latest_remittance)
@@ -32,13 +32,13 @@ def write_inovice(folder, date, Resident, sub_items, total, invoice_number, batc
 
     document = Document(settings.MEDIA_INVOICES / 'INVOICE TEMPLATE.docx')
 
+    text_fields = {
+        "NAME OF RECIPIENT": Resident.name,
+        'INV_NO': invoice_number,
+        "RES_REF": Resident.customer_ref_no,
+        "DATE TODAY": date,
+    }
     for paragraph in document.paragraphs:
-        text_fields = {
-            "NAME OF RECIPIENT": Resident.name,
-            'INV_NO': invoice_number,
-            "RES_REF": Resident.customer_ref_no,
-            "DATE TODAY": date,
-        }
         for text_field, text_input in text_fields.items():
             if paragraph.text.count(text_field)==1: 
                 paragraph.text = paragraph.text.replace(text_field, text_input)
@@ -154,7 +154,7 @@ def write_invoices_and_update_db(invoices, sefton_payments, batch_number, folder
 
     make_archive(folder, "zip", folder)
 
-def compile_summary_table(invoices, sefton_payments, folder):
+def compile_summary_table(invoices, sefton_payments, folder, print_table=True):
     invoices_df = pd.DataFrame(invoices, columns=['Resident', 'total'])
     payments_df = pd.DataFrame(sefton_payments, columns=['Resident', 'total'])
     df = pd.merge(invoices_df, payments_df, on='Resident', how='outer')
@@ -162,6 +162,8 @@ def compile_summary_table(invoices, sefton_payments, folder):
     df[['Invoice total', 'Sefton contribution']] /= 100
     df.index = df.reset_index(drop=True).index + 1
     df.to_excel(folder+'.xlsx')
+    if print_table:
+        print(df)
 
 #=============================================   UTILS   =======================================================================================================
 
