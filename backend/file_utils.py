@@ -38,16 +38,17 @@ def gather_sefton_remittance_advice(from_year='2013'):
     return remittance_advice_files
 
 def gather_all_invoices_for_resident(first_name, last_name):
+    valid_folder = lambda folder: not any(exception in folder for exception in ['.xlsx', '.zip', 'OBSOLETE'])
+
     destination_path = settings.MEDIA_INVOICES / f'{first_name}_{last_name}'
-    os.mkdir(destination_path)
+    os.makedirs(destination_path, exist_ok=True)
     for year in sorted([year for year in os.listdir(settings.MEDIA_INVOICES) if len(year)==4]):
-        invoice_batches = sorted(os.listdir(settings.MEDIA_INVOICES/ year), key=file_num)
-        for invoice_batch in invoice_batches:
-            if '.zip' not in invoice_batch and 'OBSOLETE' not in invoice_batch:
-                file_path = os.path.join(settings.MEDIA_INVOICES, year, invoice_batch)
-                files_to_copy = [file for file in os.listdir(file_path) if first_name in file and last_name in file]
-                for file in files_to_copy:
-                    shutil.copyfile(os.path.join(file_path, file), os.path.join(destination_path, file))
+        invoice_batches = [folder for folder in os.listdir(settings.MEDIA_INVOICES/ year) if valid_folder(folder)]
+        for invoice_batch in sorted(invoice_batches, key=file_num):
+            file_path = os.path.join(settings.MEDIA_INVOICES, year, invoice_batch)
+            files_to_copy = [file for file in os.listdir(file_path) if first_name in file and last_name in file]
+            for file in files_to_copy:
+                shutil.copyfile(os.path.join(file_path, file), os.path.join(destination_path, file))
 
 # if __name__=='__main__':
-#     gather_all_invoices_for_resident(first_name, last_name)
+#     gather_all_invoices_for_resident(first_name='', last_name='')

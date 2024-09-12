@@ -37,6 +37,8 @@ def main():
 
 
 def add_payments_to_db(new_payments, bank='Santander'):
+    if new_payments.iloc[0].date > new_payments.iloc[-1].date:
+        new_payments = new_payments.iloc[::-1]
     for index, payment_ in new_payments.iterrows():
         payment(**extract_payment_kwargs_for_db(payment_, bank)).save()
 
