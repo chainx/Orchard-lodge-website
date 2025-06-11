@@ -2,6 +2,7 @@ Specific resident's page:
     -Javascript code to vary cutoff date when matching invoices and payments
     -Update drag and drop functionality to allow matching multiple payments to a single invoice
     -Functionality to mark as obsolete, modify, view and download each invoice
+    -Add ability to download all invoices and latest statement of account
 
 Remittance advice page:
     -Add a page for each remittance advice batch
@@ -11,12 +12,19 @@ Remittance advice page:
 Residents page:
     -Add Javascript to reorder dashboard table by total owed, or by last name
     -Add global variable to modify cutoff date and form to modify it
-
-Upload page:
+    -Add button to generate latest statements of account
     -Functionality to upload invoice and extract info from invoice + checksum
+
+Payments page:
+    -Add button for myself to download Santander payments and update DB
+    -Add error handling for the above download button
+    -Display time of last download
+    -Add ability to match unmatched payments to residents
     -Functionality to add cash / cheque payments (even those that don't exist yet)
 
--Use scraped data to find which invoices have been manually edited (checksum)
+
+
+-Use scraped Sefton data to find which invoices have been manually edited (checksum)
 -Allow for modification to invoices from Sefton before writing to DB
 
 Home page:

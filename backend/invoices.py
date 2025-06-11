@@ -18,6 +18,10 @@ from django.conf import settings
 from main.models import resident, invoice, sefton_payment
 
 def main():
+    # Test for invoice writing
+    # debt = pd.DataFrame({'Amount': 100, 'PaymentItemDates' : 'All time', 'AdjustmentLabel' : ''}, index=[0])
+    # write_inovice(settings.MEDIA_INVOICES, datetime.now().strftime("%d %B %Y"), resident.objects.get(id=1), debt, 10000, '005670', batch_number=None)
+
     get_remittance_advice()
 
     latest_remittance = latest_filename(settings.MEDIA_REMITTANCE)
@@ -66,6 +70,7 @@ def write_inovice(folder, date, Resident, sub_items, total, invoice_number, batc
 def get_invoice_data_from_sefton_csv(filename, save_new_residents=True): # Obtains data pertinent to writing invoices and updating the database
     date, year = datetime.now().strftime("%d %B %Y"), datetime.now().strftime("%Y")
     batch_number = file_num(os.path.basename(filename))
+    os.makedirs(os.path.join(settings.MEDIA_INVOICES, year), exist_ok=True)
     folder = os.path.join(settings.MEDIA_INVOICES, year, f'{batch_number}. {date}')
     invoice_number = max(invoice.objects.filter(obsolete=False).values_list('invoice_number', flat=True))
     invoice_number = "%05d" % (int(invoice_number)+1)
@@ -139,7 +144,7 @@ def extract_payment_args_for_db(payment):
     payment.pop('sub_items')
     return payment
 
-def write_invoices_and_update_db(invoices, sefton_payments, batch_number, folder):    
+def write_invoices_and_update_db(invoices, sefton_payments, batch_number, folder, update_db=True):    
     year = datetime.now().strftime("%Y")
     if invoice.objects.filter(year=year, batch_number=batch_number):
         raise ValueError(f'There already exist entries in the database for batch number {batch_number} in {year}')
@@ -210,6 +215,8 @@ def get_or_add_resident(res_name, sefton_id=None, current=True, private=False, s
                 print(f'New resident: {res.name} - {res.customer_ref_no}, NOT SAVED!\n')
     if res.private and not new_res_created:
         print(f'The private resident {res.name} has been added to the Sefton remittance advice\n')
+    if not res.current and not new_res_created:
+        print(f'The former resident {res.name} has been added to the Sefton remittance advice\n')
     return res
 
 def get_residents_with_similar_name(first, last):

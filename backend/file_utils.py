@@ -40,7 +40,7 @@ def gather_sefton_remittance_advice(from_year='2013'):
 def gather_all_invoices_for_resident(first_name, last_name):
     valid_folder = lambda folder: not any(exception in folder for exception in ['.xlsx', '.zip', 'OBSOLETE'])
 
-    destination_path = settings.MEDIA_INVOICES / f'{first_name}_{last_name}'
+    destination_path = settings.MEDIA_INVOICES / f'{first_name}_{last_name} invoices'
     os.makedirs(destination_path, exist_ok=True)
     for year in sorted([year for year in os.listdir(settings.MEDIA_INVOICES) if len(year)==4]):
         invoice_batches = [folder for folder in os.listdir(settings.MEDIA_INVOICES/ year) if valid_folder(folder)]
