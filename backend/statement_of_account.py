@@ -2,7 +2,7 @@ import os
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from datetime import datetime
+from datetime import datetime, date
 from docx import Document
 from copy import deepcopy
 from shutil import make_archive
@@ -13,16 +13,31 @@ from django.conf import settings
 from main.models import resident, invoice, payment, CUTOFF_DATE
 
 def main():
-    folder = settings.MEDIA_INVOICES / 'Latest statements of account'
+    produce_statements_of_account()
+    produce_statements_of_account(recently_left=True)
+
+#==================================================================================================================================================================
+
+def produce_statements_of_account(recently_left=False):
+    print(datetime.now().date().strftime('%B %Y'))
+    
+    folder = settings.MEDIA_INVOICES / f"Statements of account ({datetime.now().date().strftime('%B %Y')}){' recently left' if recently_left else ''}"
+    if not recently_left:
+        residents = resident.objects.filter(current=True)
+    else:
+        residents = resident.objects.filter(leave_date__gt=date(2024,10,1))
+
+    os.makedirs(folder, exist_ok=True)
+    
     count = 1
-    for res in resident.objects.filter(current=True).order_by('last'):
+    for res in residents.order_by('last'):
         if res.total_owed() != 0:
             write_statement_of_account(folder, count, res)
             count+=1
         else:
             print(res.name)
-
-#==================================================================================================================================================================
+            
+    make_archive(folder, "zip", folder)
 
 def write_statement_of_account(folder, count, res):
 
@@ -47,19 +62,19 @@ def write_statement_of_account(folder, count, res):
     for i, inv in enumerate(res.invoice_set.filter(obsolete=False).order_by('date').filter(date__gte=CUTOFF_DATE)):
         new_row = document.tables[1].add_row()
         copy_row_format(document.tables[1].rows[0], new_row)
-        new_row.cells[0].text = str(inv.date)
+        new_row.cells[0].text = inv.date.strftime('%d/%m/%Y')
         new_row.cells[1].text = inv.invoice_number
         new_row.cells[2].text = str(inv.batch_number)
         new_row.cells[3].text = str_total(inv.total)
 
-    for i, pay in enumerate(res.payment_set.filter(matched=False).order_by('date').filter(date__gte=CUTOFF_DATE)):
+    for i, pay in enumerate(res.payment_set.order_by('date').filter(date__gte=CUTOFF_DATE)):
         new_row = document.tables[2].add_row()
         copy_row_format(document.tables[2].rows[0], new_row)
-        new_row.cells[0].text = str(pay.date)
+        new_row.cells[0].text = pay.date.strftime('%d/%m/%Y')
         new_row.cells[1].text = str_total(pay.amount)
         new_row.cells[2].text = 'Bank transfer' if pay.type in ['Santander', 'RBS'] else pay.type
 
-    document.save(os.path.join(folder, f'{count}. {res.name}.docx'))
+    document.save(os.path.join(folder, f'{count}. {res.name} - Statement of Account.docx'))
 
 def copy_row_format(source_row, target_row):
     for source_cell, target_cell in zip(source_row.cells, target_row.cells):        

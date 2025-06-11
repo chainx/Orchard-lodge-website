@@ -55,9 +55,10 @@ class payment(models.Model):
 
     cash='Cash'
     cheque='Cheque'
+    card='Card'
     santander='Santander'
     rbs='RBS'
-    type_choices = [(cash,cash),(cheque,cheque),(santander, santander),(rbs, rbs)]
+    type_choices = [(cash,cash),(cheque,cheque),(card,card),(santander, santander),(rbs, rbs)]
     type = models.CharField(max_length=9, choices=type_choices, blank=True, null=True)
 
 
