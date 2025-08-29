@@ -19,8 +19,8 @@ from main.models import resident, invoice, sefton_payment
 
 def main():
     # Test for invoice writing
-    # debt = pd.DataFrame({'Amount': 100, 'PaymentItemDates' : 'All time', 'AdjustmentLabel' : ''}, index=[0])
-    # write_inovice(settings.MEDIA_INVOICES, datetime.now().strftime("%d %B %Y"), resident.objects.get(id=1), debt, 10000, '005670', batch_number=None)
+    # debt = pd.DataFrame({'Amount': 100, 'PaymentItemDates' : '01/01/2025 - 28/01/2025', 'AdjustmentLabel' : ''}, index=[0])
+    # write_inovice(settings.MEDIA_INVOICES, datetime.now().strftime("%d %B %Y"), resident.objects.get(id=100), debt, 10000, '015670', batch_number=10)
 
     get_remittance_advice()
 
@@ -28,39 +28,36 @@ def main():
     invoices, sefton_payments, batch_number, folder = get_invoice_data_from_sefton_csv(latest_remittance)
     
     compile_summary_table(invoices, sefton_payments, folder)
-    write_invoices_and_update_db(invoices, sefton_payments, batch_number, folder)
+    write_invoices_and_update_db(invoices, sefton_payments, batch_number, folder, update_db=True)
 
 #==================================================================================================================================================================
 
 def write_inovice(folder, date, Resident, sub_items, total, invoice_number, batch_number=None):
-
     document = Document(settings.MEDIA_INVOICES / 'INVOICE TEMPLATE.docx')
 
-    text_fields = {
-        "NAME OF RECIPIENT": Resident.name,
-        'INV_NO': invoice_number,
-        "RES_REF": Resident.customer_ref_no,
-        "DATE TODAY": date,
-    }
-    for paragraph in document.paragraphs:
-        for text_field, text_input in text_fields.items():
-            if paragraph.text.count(text_field)==1: 
-                paragraph.text = paragraph.text.replace(text_field, text_input)
+    tbl = document.tables[0]
+    tbl.cell(0,0).paragraphs[0].text = tbl.cell(0,0).paragraphs[0].text.replace("NAME OF RECIPIENT", Resident.name)
+    tbl.cell(0,1).paragraphs[0].text = tbl.cell(0,1).paragraphs[0].text.replace('INV_NO', invoice_number)
+    tbl.cell(0,1).paragraphs[1].text = tbl.cell(0,1).paragraphs[1].text.replace("RES_REF", Resident.customer_ref_no)
+    tbl.cell(0,1).paragraphs[2].text = tbl.cell(0,1).paragraphs[2].text.replace("DATE TODAY", date)
 
+    if len(sub_items) + 7 > len(document.tables[1].cell(0,0).paragraphs):
+        print(f'Too many subitems! Invoice for {Resident.name} must be written manually')
+        sub_items = pd.DataFrame()
     count=0
     for debt in sub_items.itertuples():
-        paragraph = document.tables[0].cell(0,0).paragraphs[7+count]
+        paragraph = document.tables[1].cell(0,0).paragraphs[7+count]
 
         reason=''
         if debt[3]!='' and debt[3]!='MA': 
             reason=' ('+debt[3]+')'
         paragraph.text='From ' + debt[2] + reason
         
-        paragraph =  document.tables[0].cell(0,1).paragraphs[8+count]
+        paragraph =  document.tables[1].cell(0,1).paragraphs[8+count]
         paragraph.text = u'\u00A3' + f'{debt[1]:.2f}'
         count+=1
 
-    for paragraph in document.tables[0].cell(1,1).paragraphs:
+    for paragraph in document.tables[1].cell(1,1).paragraphs:
         if paragraph.text.count('TOTAL')==1: paragraph.text=paragraph.text.replace('TOTAL', f'{total/100:.2f}')
 
     document.save(os.path.join(folder, f'{invoice_number} - {Resident.name}.docx'))
@@ -153,13 +150,15 @@ def write_invoices_and_update_db(invoices, sefton_payments, batch_number, folder
 
     for invoice_data in invoices:
         write_inovice(folder, **invoice_data) # Write invoice file locally
-        invoice(**extract_invoice_args_for_db(invoice_data, folder)).save() # Save invoices to the database
-    for payment in sefton_payments:
-        sefton_payment(**extract_payment_args_for_db(payment)).save()
+        if update_db:
+            invoice(**extract_invoice_args_for_db(invoice_data, folder)).save() # Save invoices to the database
+    if update_db:
+        for payment in sefton_payments:
+            sefton_payment(**extract_payment_args_for_db(payment)).save()
 
     make_archive(folder, "zip", folder)
 
-def compile_summary_table(invoices, sefton_payments, folder, print_table=True):
+def compile_summary_table(invoices, sefton_payments, folder, print_table=False):
     invoices_df = pd.DataFrame(invoices, columns=['Resident', 'total'])
     payments_df = pd.DataFrame(sefton_payments, columns=['Resident', 'total'])
     df = pd.merge(invoices_df, payments_df, on='Resident', how='outer')
