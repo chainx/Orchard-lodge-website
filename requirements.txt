@@ -3,6 +3,7 @@ selenium
 webdriver_manager
 python-docx
 openpyxl
+XlsxWriter
 django-crispy-forms
 bootstrap4
 whitenoise
