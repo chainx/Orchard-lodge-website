@@ -26,6 +26,8 @@ def main():
 
     latest_remittance = latest_filename(settings.MEDIA_REMITTANCE)
     invoices, sefton_payments, batch_number, folder = get_invoice_data_from_sefton_csv(latest_remittance)
+
+    # rewrite_invoice('inv_no', 'title first last', folder, invoices)
     
     compile_summary_table(invoices, sefton_payments, folder)
     write_invoices_and_update_db(invoices, sefton_payments, batch_number, folder, update_db=True)
@@ -40,27 +42,44 @@ def write_inovice(folder, date, Resident, sub_items, total, invoice_number, batc
     tbl.cell(0,1).paragraphs[0].text = tbl.cell(0,1).paragraphs[0].text.replace('INV_NO', invoice_number)
     tbl.cell(0,1).paragraphs[1].text = tbl.cell(0,1).paragraphs[1].text.replace("RES_REF", Resident.customer_ref_no)
     tbl.cell(0,1).paragraphs[2].text = tbl.cell(0,1).paragraphs[2].text.replace("DATE TODAY", date)
+    
+    desc_col, amount_col = document.tables[1].cell(0,0), document.tables[1].cell(0,1)
+    desc_idx_offset, amount_idx_offset = 7, 8
+    desc_idx_offset_min, amount_idx_offset_min = 3, 4
+    max_rows = 20
 
-    if len(sub_items) + 7 > len(document.tables[1].cell(0,0).paragraphs):
-        print(f'Too many subitems! Invoice for {Resident.name} must be written manually')
-        sub_items = pd.DataFrame()
+    if len(sub_items) + desc_idx_offset > len(desc_col.paragraphs):
+        print(f'Invoice for {Resident.name} has too many subitems, may have to be edited manually')
+        offset = len(sub_items) - max_rows
+        if offset >= 0:
+            desc_idx_offset, amount_idx_offset = desc_idx_offset_min+offset, amount_idx_offset_min+offset
+        else:
+            print(f'{-offset} additional rows have been added')
+            desc_idx_offset, amount_idx_offset = desc_idx_offset_min, amount_idx_offset_min
+            for n in range(-offset):
+                desc_col.add_paragraph()
+                amount_col.add_paragraph()
+
     count=0
     for debt in sub_items.itertuples():
-        paragraph = document.tables[1].cell(0,0).paragraphs[7+count]
-
-        reason=''
-        if debt[3]!='' and debt[3]!='MA': 
-            reason=' ('+debt[3]+')'
-        paragraph.text='From ' + debt[2] + reason
+        paragraph = desc_col.paragraphs[desc_idx_offset+count]
+        reason=' ('+debt[3]+')' if debt[3]!='' and debt[3]!='MA' else ''
+        paragraph.text = f'From {debt[2]}{reason}'
         
-        paragraph =  document.tables[1].cell(0,1).paragraphs[8+count]
+        paragraph =  amount_col.paragraphs[amount_idx_offset+count]
         paragraph.text = u'\u00A3' + f'{debt[1]:.2f}'
+
         count+=1
 
     for paragraph in document.tables[1].cell(1,1).paragraphs:
         if paragraph.text.count('TOTAL')==1: paragraph.text=paragraph.text.replace('TOTAL', f'{total/100:.2f}')
 
     document.save(os.path.join(folder, f'{invoice_number} - {Resident.name}.docx'))
+
+def rewrite_invoice(invoice_number, resident_name, folder, invoices):
+    invoice = [invoice for invoice in invoices if invoice['Resident'].name == resident_name][0]
+    invoice['invoice_number'] = invoice_number
+    write_inovice(folder, **invoice)
 
 #==================================================================================================================================================================
 
