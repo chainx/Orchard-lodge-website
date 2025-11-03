@@ -86,9 +86,7 @@ def produce_summary_table(resident_list, filename, recently_left):
     else:
         df= pd.DataFrame([(res.name, res.total_owed()/100, res.leave_date) for res in resident_list], columns=["Name", owed_col_name, "Leave Date"])
 
-    date_stripped_filename = ' '.join(filename.split()[:-1])
-    pattern = f'^{date_stripped_filename} \\(\\d{{2}}-\\d{{2}}-\\d{{4}}\\)\\.xlsx$'
-    previous_filename = next(file for file in os.listdir(settings.MEDIA_INVOICES) if re.match(pattern, file))
+    previous_filename = next(file for file in os.listdir(settings.MEDIA_INVOICES) if is_prev_excel_sheet(file, recently_left))
     previous_df = pd.read_excel(settings.MEDIA_INVOICES/previous_filename).iloc[:, 1:] # Removes index col
     
     combined_df = df.merge(previous_df, on="Name", how="left")
@@ -133,6 +131,13 @@ def copy_row_format(source_row, target_row):
 
 def str_total(total):
     return u'\u00A3' + f'{total/100:,.2f}'
+
+def is_prev_excel_sheet(file, recently_left):
+    if '.xlsx' in file and 'Statements of Account' in file and '~lock' not in file:
+        if not recently_left:
+            return True
+        if 'Recently Left' in file:
+            return True
 
 #==================================================================================================================================================================
 
