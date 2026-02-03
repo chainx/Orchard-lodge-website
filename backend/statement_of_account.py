@@ -1,28 +1,38 @@
-import os
+import os, shutil
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from datetime import datetime, date
 import pandas as pd
 from docx import Document
+from pypdf import PdfWriter, PdfReader
 from copy import deepcopy
-from shutil import make_archive
 import re
+import subprocess
 
 import django
 django.setup()
 from django.conf import settings
 from main.models import resident, invoice, payment, CUTOFF_DATE
 
+BASE_FOLDER = settings.MEDIA_INVOICES / 'Statements of account'
+
+cover_letter_lower_threshold = 50000 #£500
+cover_letter_upper_threshold = 100000 #£1,000
+urgent_cover_letter_upper_threshold = 300000 #£3,000
+
 def main():
+    # write_cover_letter(BASE_FOLDER,1,resident.objects.get(id=88)) #193
+    # write_statement_of_account(BASE_FOLDER,1,resident.objects.get(id=198))
+    
     produce_statements_of_account()
-    produce_statements_of_account(recently_left=True)
+    # produce_statements_of_account(recently_left=True)
 
 #==================================================================================================================================================================
 
-def produce_statements_of_account(recently_left=False):    
+def produce_statements_of_account(recently_left=False, include_cover_letter=False):    
     filename = f"Statements of Account ({datetime.now().date().strftime('%d-%m-%Y')}){' Recently Left' if recently_left else ''}"
-    folder = settings.MEDIA_INVOICES / filename
+    folder = BASE_FOLDER / filename
     if not recently_left:
         residents = resident.objects.filter(current=True)
     else:
@@ -34,17 +44,55 @@ def produce_statements_of_account(recently_left=False):
     count = 1
     for res in resident_list:
         if res.total_owed() != 0:
-            write_statement_of_account(folder, count, res)
+            statement_of_account = write_statement_of_account(folder, count, res)
+            if include_cover_letter:
+                cover_letter = write_cover_letter(folder, count, res)
+                merge_pdfs(cover_letter, statement_of_account)
             count+=1
         else:
             print(res.name)
-    make_archive(folder, "zip", folder)
+
+    os.makedirs(folder/'docx files', exist_ok=True)
+    for file in os.listdir(folder):  
+        if (folder/file).is_file() and (file.endswith(".docx") or "Cover Letter" in file):
+            shutil.move(folder/file, folder/'docx files'/file)
+
+    shutil.make_archive(folder, "zip", folder)
 
     produce_summary_table(resident_list, filename, recently_left)
 
+def write_cover_letter(folder, count, res):
+
+    if res.total_owed() < cover_letter_lower_threshold:
+        return
+    elif res.total_owed() >= cover_letter_lower_threshold and res.total_owed() <= cover_letter_upper_threshold:
+        document = Document(settings.MEDIA_INVOICES_TEMPLATES / 'STATEMENT OF ACCOUNT COVER LETTER TEMPLATE (1).docx')
+    elif res.total_owed() < urgent_cover_letter_upper_threshold:
+        document = Document(settings.MEDIA_INVOICES_TEMPLATES / 'STATEMENT OF ACCOUNT COVER LETTER TEMPLATE (2).docx')
+    else:
+        document = Document(settings.MEDIA_INVOICES_TEMPLATES / 'STATEMENT OF ACCOUNT COVER LETTER TEMPLATE (3).docx')
+
+    text_fields = {
+        "RES_NAME_1": f'{res.title} {res.first[0]} {res.last}',
+        "RES_NAME_2": f'{res.title} {res.last}',
+        "[AMOUNT]": str_total(res.total_owed()),
+        "[DATE]": datetime.now().date().strftime('%-d %B %Y'),
+    }
+
+    for paragraph in document.paragraphs:
+        for run in paragraph.runs:
+            for text_field, text_input in text_fields.items():
+                if text_field in run.text:
+                    run.text = run.text.replace(text_field, text_input)
+
+    filename = os.path.join(folder, f'{count}. {res.name} - Statement of Account Cover Letter')
+    document.save(f'{filename}.docx')
+    docx_to_pdf(filename)
+    return f'{filename}.pdf'
+
 def write_statement_of_account(folder, count, res):
 
-    document = Document(settings.MEDIA_INVOICES / 'STATEMENT OF ACCOUNT TEMPLATE.docx')
+    document = Document(settings.MEDIA_INVOICES_TEMPLATES / 'STATEMENT OF ACCOUNT TEMPLATE.docx')
 
     text_fields = {
         "RES_NAME": res.name,
@@ -77,7 +125,10 @@ def write_statement_of_account(folder, count, res):
         new_row.cells[1].text = str_total(pay.amount)
         new_row.cells[2].text = 'Bank transfer' if pay.type in ['Santander', 'RBS'] else pay.type
 
-    document.save(os.path.join(folder, f'{count}. {res.name} - Statement of Account.docx'))
+    filename = os.path.join(folder, f'{res.name} - Statement of Account')
+    document.save(f'{filename}.docx')
+    docx_to_pdf(filename)
+    return f'{filename}.pdf'
 
 def produce_summary_table(resident_list, filename, recently_left):
     owed_col_name = f"Total Owed ({datetime.now().date().strftime('%d %B')})"
@@ -86,13 +137,13 @@ def produce_summary_table(resident_list, filename, recently_left):
     else:
         df= pd.DataFrame([(res.name, res.total_owed()/100, res.leave_date) for res in resident_list], columns=["Name", owed_col_name, "Leave Date"])
 
-    previous_filename = next(file for file in os.listdir(settings.MEDIA_INVOICES) if is_prev_excel_sheet(file, recently_left))
-    previous_df = pd.read_excel(settings.MEDIA_INVOICES/previous_filename).iloc[:, 1:] # Removes index col
+    previous_filename = next(file for file in os.listdir(BASE_FOLDER) if is_prev_excel_sheet(file, recently_left))
+    previous_df = pd.read_excel(BASE_FOLDER/previous_filename).iloc[:, 1:] # Removes index col
     
     combined_df = df.merge(previous_df, on="Name", how="left")
     combined_df.index = combined_df.index + 1
 
-    with pd.ExcelWriter(settings.MEDIA_INVOICES/f"{filename}.xlsx", engine="xlsxwriter") as writer:
+    with pd.ExcelWriter(BASE_FOLDER/f"{filename}.xlsx", engine="xlsxwriter") as writer:
         combined_df.to_excel(writer, sheet_name="Sheet1")
         worksheet = writer.sheets["Sheet1"]
 
@@ -134,10 +185,32 @@ def str_total(total):
 
 def is_prev_excel_sheet(file, recently_left):
     if '.xlsx' in file and 'Statements of Account' in file and '~lock' not in file:
-        if not recently_left:
+        if not recently_left and 'Recently Left' not in file:
             return True
-        if 'Recently Left' in file:
+        if recently_left and 'Recently Left' in file:
             return True
+
+def docx_to_pdf(input_file):
+    # Requires LibreOffice
+    cmd = [
+        "soffice",
+        "--headless",
+        "--convert-to", "pdf",
+        "--outdir", os.path.dirname(input_file),
+        f'{input_file}.docx'
+    ]
+    subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+def merge_pdfs(cover_letter, statement_of_account):
+    if not cover_letter:
+        return
+    writer = PdfWriter()
+    for pdf in [cover_letter, statement_of_account]:
+        reader = PdfReader(pdf)
+        for page in reader.pages:
+            writer.add_page(page)
+    with open(statement_of_account, "wb") as f:
+        writer.write(f)
 
 #==================================================================================================================================================================
 

@@ -2,6 +2,7 @@ pandas
 selenium
 webdriver_manager
 python-docx
+pypdf
 openpyxl
 XlsxWriter
 django-crispy-forms

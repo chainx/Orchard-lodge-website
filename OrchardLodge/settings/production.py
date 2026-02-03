@@ -18,6 +18,7 @@ SECRET_MEDIA_ROOT = ROOT / 'Orchard lodge accounting data (PRIVATE)'
 MEDIA_URL = '/Invoices/'
 
 MEDIA_INVOICES = MEDIA_ROOT / 'Invoices'
+MEDIA_INVOICES_TEMPLATES = MEDIA_INVOICES / 'Templates'
 MEDIA_REMITTANCE = MEDIA_ROOT / 'Remittance advice'
 MEDIA_PAYMENTS = MEDIA_ROOT / 'Bank statements'
 
