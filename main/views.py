@@ -52,7 +52,7 @@ def home(request):
 def payments(request):
     if request.user.is_authenticated:
         data = {
-            'unmatched_payments': payment.objects.filter(Resident_id__isnull=True, date__gte=date(2024,4,1)).order_by('date').reverse(),
+            'unmatched_payments': payment.objects.filter(Resident_id__isnull=True, date__gte=date(2025,4,1)).order_by('date').reverse(),
             'residents': resident.objects.all(),
         }
         if request.method=='POST':
@@ -104,7 +104,7 @@ def residents(request):
         data = {
             'resident_info_table':  compile_resident_table(residents.filter(current=True, private=False)),
             'private_resident_info_table': compile_resident_table(residents.filter(current=True, private=True)),
-            'recent_resident_info_table': compile_resident_table(residents.filter(leave_date__gt=date(2024,10,1)), include_date_left=True),
+            'recent_resident_info_table': compile_resident_table(residents.filter(leave_date__gt=date(2025,2,1)), include_date_left=True),
             'former_residents' : residents.filter(current=False),
         }
 

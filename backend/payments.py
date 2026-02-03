@@ -1,5 +1,5 @@
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, date
 import os
 import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -8,11 +8,10 @@ import django
 django.setup()
 
 from django.conf import settings
-from django.db.models import F, Value
+from django.db.models import F, Value, Q, Sum
 from django.db.models.functions import Concat
 
-from main.models import payment
-from main.models import resident
+from main.models import resident, payment, CUTOFF_DATE
 from backend.get_santander_data import scrape_santander_bank_statements
 
 santander_file_path = os.path.join(settings.MEDIA_PAYMENTS, 'Santander')
@@ -185,6 +184,16 @@ excel_to_db_cols = {
 
 def convert_to_pennies(amount):
     return int(amount.split()[1].replace(',','').replace('.',''))
+
+def find_all_cash_payments(cutoff_date=CUTOFF_DATE):
+    payments = payment.objects.filter(Q(date__gt=cutoff_date) & Q(type='Cash'))
+    total = payments.aggregate(total=Sum('amount'))['total']
+    print(f"£{total/100:,.2f}")
+    #residents Q(leave_date__gt=cutoff_date | Q(current=True)
+    # for res in residents:
+    #     if len(res.payment_set.filter(type='Cash'))>0:
+    #         leave_date = res.leave_date if res.leave_date else ''
+    #         print(res.name, len(res.payment_set.filter(type='Cash')), leave_date)
 
 #=====================================================================================================================================================================
 

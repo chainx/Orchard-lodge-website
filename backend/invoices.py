@@ -35,7 +35,7 @@ def main():
 #==================================================================================================================================================================
 
 def write_inovice(folder, date, Resident, sub_items, total, invoice_number, batch_number=None):
-    document = Document(settings.MEDIA_INVOICES / 'INVOICE TEMPLATE.docx')
+    document = Document(settings.MEDIA_INVOICES_TEMPLATES / 'INVOICE TEMPLATE.docx')
 
     tbl = document.tables[0]
     tbl.cell(0,0).paragraphs[0].text = tbl.cell(0,0).paragraphs[0].text.replace("NAME OF RECIPIENT", Resident.name)
