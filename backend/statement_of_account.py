@@ -45,9 +45,10 @@ def produce_statements_of_account(recently_left=False, include_cover_letter=Fals
     for res in resident_list:
         if res.total_owed() != 0:
             statement_of_account = write_statement_of_account(folder, count, res)
+            cover_letter = None
             if include_cover_letter:
                 cover_letter = write_cover_letter(folder, count, res)
-                merge_pdfs(cover_letter, statement_of_account)
+            merge_pdfs(cover_letter, statement_of_account)
             count+=1
         else:
             print(res.name)
@@ -202,10 +203,10 @@ def docx_to_pdf(input_file):
     subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 def merge_pdfs(cover_letter, statement_of_account):
-    if not cover_letter:
-        return
     writer = PdfWriter()
     for pdf in [cover_letter, statement_of_account]:
+        if pdf is None:
+            continue
         reader = PdfReader(pdf)
         for page in reader.pages:
             writer.add_page(page)
