@@ -10,6 +10,8 @@ class resident(models.Model):
     title = models.CharField(max_length=8)
     first = models.CharField(max_length=32)
     last = models.CharField(max_length=32)
+    email = models.EmailField(max_length=256, default='', blank=True)
+    email_name = models.CharField(max_length=64, default='', blank=True)
     customer_ref_no = models.CharField(max_length=6, default='', blank=True, null=True)
     sefton_id = models.CharField(max_length=32, blank=True, null=True)
     current = models.BooleanField(default=True)

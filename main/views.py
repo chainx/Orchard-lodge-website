@@ -17,7 +17,6 @@ from backend.file_utils import file_num, latest_filename, latest_filenum
 from backend.get_sefton_data import get_remittance_advice
 from backend.invoices import get_invoice_data_from_sefton_csv, write_invoices_and_update_db, generate_unique_customer_reference_number
 from backend.payments import match_payments_to_resident
-from backend.send_emails import send_email
 
 from django.conf import settings
 
@@ -42,7 +41,6 @@ def home(request):
 
                 invoices, batch_number, folder = get_invoice_data_from_sefton_csv(latest_remittance)
                 write_invoices_and_update_db(invoices, batch_number, folder)
-                # send_email() #Sends email to the manager with the recent batch of invoices
 
                 return render(request, "main/home.html", {'confirmed_data': True})
         return render(request, "main/home.html")
