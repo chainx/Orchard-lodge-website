@@ -1,5 +1,4 @@
-import os
-import sys
+import os, sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import shutil
 
@@ -10,8 +9,8 @@ from django.conf import settings
 # Used in functions below and in views.py for the download page to order the filenames 
 def file_num(filename):
         filename = os.path.basename(filename)
-        if '.PDF' in filename:
-             return -1 # Don't want pandas trying to read PDF when writing invoices
+        if any([ext in filename for ext in ['.PDF', '.sh']]):
+             return -1 # Don't want pandas trying to read invalid file types when writing invoices
         if filename[1].isdigit():
             return int(filename[0:2])
         return int(filename[0])
@@ -38,9 +37,9 @@ def gather_sefton_remittance_advice(from_year='2013'):
     return remittance_advice_files
 
 def gather_all_invoices_for_resident(first_name, last_name):
-    valid_folder = lambda folder: not any(exception in folder for exception in ['.xlsx', '.zip', 'OBSOLETE'])
+    valid_folder = lambda folder: not any(exception in folder for exception in ['.xlsx', '.zip', '.sh', 'OBSOLETE'])
 
-    destination_path = settings.MEDIA_INVOICES / f'{first_name}_{last_name} invoices'
+    destination_path = settings.MEDIA_INVOICES / f'{first_name} {last_name} invoices'
     os.makedirs(destination_path, exist_ok=True)
     for year in sorted([year for year in os.listdir(settings.MEDIA_INVOICES) if len(year)==4]):
         invoice_batches = [folder for folder in os.listdir(settings.MEDIA_INVOICES/ year) if valid_folder(folder)]

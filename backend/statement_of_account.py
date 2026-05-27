@@ -4,6 +4,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from datetime import datetime, date
 import pandas as pd
+import sqlite3
 from docx import Document
 from pypdf import PdfWriter, PdfReader
 from copy import deepcopy
@@ -14,23 +15,26 @@ import django
 django.setup()
 from django.conf import settings
 from main.models import resident, invoice, payment, CUTOFF_DATE
+from invoices import get_residents_with_similar_name
 
 BASE_FOLDER = settings.MEDIA_INVOICES / 'Statements of account'
 
-cover_letter_lower_threshold = 50000 #£500
-cover_letter_upper_threshold = 100000 #£1,000
-urgent_cover_letter_upper_threshold = 300000 #£3,000
+cover_letter_lower_threshold = 0 #£0
+cover_letter_upper_threshold        = 1000000000 # Set to absurdly high values
+urgent_cover_letter_upper_threshold = 10000000000 # so that these templates aren't used
 
 def main():
     # write_cover_letter(BASE_FOLDER,1,resident.objects.get(id=88)) #193
     # write_statement_of_account(BASE_FOLDER,1,resident.objects.get(id=198))
     
+    # produce_resident_table(first_name, last_name)
+
     produce_statements_of_account()
     # produce_statements_of_account(recently_left=True)
 
 #==================================================================================================================================================================
 
-def produce_statements_of_account(recently_left=False, include_cover_letter=False):    
+def produce_statements_of_account(recently_left=False, include_cover_letter=True):    
     filename = f"Statements of Account ({datetime.now().date().strftime('%d-%m-%Y')}){' Recently Left' if recently_left else ''}"
     folder = BASE_FOLDER / filename
     if not recently_left:
@@ -60,7 +64,7 @@ def produce_statements_of_account(recently_left=False, include_cover_letter=Fals
 
     shutil.make_archive(folder, "zip", folder)
 
-    produce_summary_table(resident_list, filename, recently_left)
+    # produce_summary_table(resident_list, filename, recently_left)
 
 def write_cover_letter(folder, count, res):
 
@@ -173,6 +177,55 @@ def produce_summary_table(resident_list, filename, recently_left):
                 )
             else:
                 worksheet.set_column(col_idx, col_idx, max_len, base_fmt)
+
+def produce_resident_table(first, last):
+    res = get_residents_with_similar_name(first, last, verbose=False)
+
+    conn = sqlite3.connect(settings.MEDIA_ROOT / "db.sqlite3")
+
+    query = f"""
+        SELECT date, amount, 'payment' AS type
+        FROM main_payment
+        WHERE Resident_id = {res.id}
+
+        UNION ALL
+
+        SELECT date, total, 'invoice' AS type
+        FROM main_invoice
+        WHERE Resident_id = {res.id}
+
+        ORDER BY date
+    """
+    df = pd.read_sql_query(query, conn)
+    conn.close()
+
+    df["amount"] /= 100
+    df["signed_amount"] = df["amount"].where(df["type"] == "invoice", -df["amount"])
+    df["total_owed"] = df["signed_amount"].cumsum()
+    df = df.drop(columns=["signed_amount"])
+    df = df[["date", "type", "amount", "total_owed"]]
+
+    filename = settings.MEDIA_INVOICES / f"{first} {last} summary table.xlsx"
+    with pd.ExcelWriter(filename, engine="xlsxwriter") as writer:
+        df.to_excel(writer, index=False, sheet_name="Sheet1")
+        worksheet = writer.sheets["Sheet1"]
+        worksheet.set_column(0, 1, 12, writer.book.add_format({"font_size": 13}))
+        worksheet.set_column(2, 3, 12, writer.book.add_format({"num_format": "£#,##0.00", "font_size": 13}))
+
+        chart = writer.book.add_chart({"type": "line"})
+
+        chart.add_series({
+            "name": "Total owed",
+            "categories": ["Sheet1", 1, 0, len(df), 0],  # dates in col A
+            "values":     ["Sheet1", 1, 3, len(df), 3],  # total_owed in col D
+        })
+
+        chart.set_title({"name": "Total Owed Over Time"})
+        chart.set_x_axis({"name": "Date", "date_axis": True})
+        chart.set_y_axis({"name": "Total Owed", "num_format": "£#,##0.00"})
+        chart.set_legend({"none": True})
+
+        worksheet.insert_chart("F2", chart)
 
 def copy_row_format(source_row, target_row):
     for source_cell, target_cell in zip(source_row.cells, target_row.cells):        
