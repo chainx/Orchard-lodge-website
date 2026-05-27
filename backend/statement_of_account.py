@@ -10,18 +10,19 @@ from pypdf import PdfWriter, PdfReader
 from copy import deepcopy
 import re
 import subprocess
+from shutil import which
 
 import django
 django.setup()
 from django.conf import settings
 from main.models import resident, invoice, payment, CUTOFF_DATE
-from invoices import get_residents_with_similar_name
+from backend.invoices import get_residents_with_similar_name
 
 BASE_FOLDER = settings.MEDIA_INVOICES / 'Statements of account'
 
 cover_letter_lower_threshold = 0 #£0
 cover_letter_upper_threshold        = 1000000000 # Set to absurdly high values
-urgent_cover_letter_upper_threshold = 10000000000 # so that these templates aren't used
+urgent_cover_letter_upper_threshold = 10000000000 # so that these templates aren't used        
 
 def main():
     # write_cover_letter(BASE_FOLDER,1,resident.objects.get(id=88)) #193
@@ -34,7 +35,10 @@ def main():
 
 #==================================================================================================================================================================
 
-def produce_statements_of_account(recently_left=False, include_cover_letter=True):    
+def produce_statements_of_account(recently_left=False, include_cover_letter=True, convert_to_pdf=None):    
+    if convert_to_pdf is None:
+        convert_to_pdf = can_convert_to_pdf()
+
     filename = f"Statements of Account ({datetime.now().date().strftime('%d-%m-%Y')}){' Recently Left' if recently_left else ''}"
     folder = BASE_FOLDER / filename
     if not recently_left:
@@ -48,11 +52,12 @@ def produce_statements_of_account(recently_left=False, include_cover_letter=True
     count = 1
     for res in resident_list:
         if res.total_owed() != 0:
-            statement_of_account = write_statement_of_account(folder, count, res)
+            statement_of_account = write_statement_of_account(folder, count, res, convert_to_pdf=convert_to_pdf)
             cover_letter = None
             if include_cover_letter:
-                cover_letter = write_cover_letter(folder, count, res)
-            merge_pdfs(cover_letter, statement_of_account)
+                cover_letter = write_cover_letter(folder, count, res, convert_to_pdf=convert_to_pdf)
+            if convert_to_pdf:
+                merge_pdfs(cover_letter, statement_of_account)
             count+=1
         else:
             print(res.name)
@@ -66,7 +71,7 @@ def produce_statements_of_account(recently_left=False, include_cover_letter=True
 
     # produce_summary_table(resident_list, filename, recently_left)
 
-def write_cover_letter(folder, count, res):
+def write_cover_letter(folder, count, res, convert_to_pdf=True):
 
     if res.total_owed() < cover_letter_lower_threshold:
         return
@@ -92,10 +97,12 @@ def write_cover_letter(folder, count, res):
 
     filename = os.path.join(folder, f'{count}. {res.name} - Statement of Account Cover Letter')
     document.save(f'{filename}.docx')
-    docx_to_pdf(filename)
-    return f'{filename}.pdf'
+    if convert_to_pdf:
+        docx_to_pdf(filename)
+        return f'{filename}.pdf'
+    return f'{filename}.docx'
 
-def write_statement_of_account(folder, count, res):
+def write_statement_of_account(folder, count, res, convert_to_pdf=True):
 
     document = Document(settings.MEDIA_INVOICES_TEMPLATES / 'STATEMENT OF ACCOUNT TEMPLATE.docx')
 
@@ -132,8 +139,10 @@ def write_statement_of_account(folder, count, res):
 
     filename = os.path.join(folder, f'{res.name} - Statement of Account')
     document.save(f'{filename}.docx')
-    docx_to_pdf(filename)
-    return f'{filename}.pdf'
+    if convert_to_pdf:
+        docx_to_pdf(filename)
+        return f'{filename}.pdf'
+    return f'{filename}.docx'
 
 def produce_summary_table(resident_list, filename, recently_left):
     owed_col_name = f"Total Owed ({datetime.now().date().strftime('%d %B')})"
@@ -244,8 +253,14 @@ def is_prev_excel_sheet(file, recently_left):
         if recently_left and 'Recently Left' in file:
             return True
 
+def can_convert_to_pdf():
+    return which('soffice') is not None
+
 def docx_to_pdf(input_file):
     # Requires LibreOffice
+    if not can_convert_to_pdf():
+        raise RuntimeError('LibreOffice command "soffice" is not available; cannot convert DOCX to PDF.')
+
     cmd = [
         "soffice",
         "--headless",
@@ -253,7 +268,13 @@ def docx_to_pdf(input_file):
         "--outdir", os.path.dirname(input_file),
         f'{input_file}.docx'
     ]
-    subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    pdf_file = f'{input_file}.pdf'
+    if result.returncode != 0 or not os.path.exists(pdf_file):
+        raise RuntimeError(
+            f'LibreOffice failed to convert {input_file}.docx to PDF: '
+            f'{result.stderr.decode(errors="replace")}'
+        )
 
 def merge_pdfs(cover_letter, statement_of_account):
     writer = PdfWriter()
