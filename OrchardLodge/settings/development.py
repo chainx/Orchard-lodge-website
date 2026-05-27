@@ -4,9 +4,11 @@ import pathlib
 from OrchardLodge.settings.base import *
 
 MEDIA_ROOT = pathlib.Path(os.path.join(BASE_DIR, 'Dev data'))
+SECRET_MEDIA_ROOT = pathlib.Path(os.path.join(MEDIA_ROOT, 'Secrets'))
 MEDIA_URL = '/Invoices/'
 
 MEDIA_INVOICES = Path(os.path.join(MEDIA_ROOT, 'Invoices'))
+MEDIA_INVOICES_TEMPLATES = MEDIA_INVOICES / 'Templates'
 MEDIA_REMITTANCE = Path(os.path.join(MEDIA_ROOT, 'Remittance advice'))
 MEDIA_PAYMENTS = Path(os.path.join(MEDIA_ROOT, 'Bank statements'))
 
