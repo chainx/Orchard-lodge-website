@@ -237,12 +237,13 @@ def get_or_add_resident(res_name, sefton_id=None, current=True, private=False, s
         print(f'The former resident {res.name} has been added to the Sefton remittance advice\n')
     return res
 
-def get_residents_with_similar_name(first, last):
+def get_residents_with_similar_name(first, last, verbose=True):
     # Create a regex pattern that matches with any number of spaces or apostrophes between characters
     regex_pattern = r'(?i)^' + r'[\s\']*'.join(last.replace(' ','').replace("'", '')) + r'[\s\']*$'
     close_matches = resident.objects.filter(first__istartswith=first.split()[0], last__regex=regex_pattern)
     if len(close_matches)==1:
-        print(f'The resident {first} {last} has been identified with the following close match:\n{close_matches[0]}\n')
+        if verbose:
+            print(f'The resident {first} {last} has been identified with the following close match:\n{close_matches[0]}\n')
         return close_matches[0]
     elif len(close_matches)>1:
         raise ValueError(f'Multiple close matches for {first} {last} in the database:\n {close_matches}\n')
