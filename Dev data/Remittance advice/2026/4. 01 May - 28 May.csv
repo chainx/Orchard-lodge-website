@@ -1,0 +1,7 @@
+ServiceTotalLabel,ReportContext,Person,ClientName,IsIncome,Amount,PaymentItemDates,AdjustmentLabel
+Total for Orchard Lodge Care Home,Payment Period from 01/05/2026 to 28/05/2026,Mr,"Test, Arthur (DEV-SEFTON-001)",1,450.0,01/05/2026 - 28/05/2026,
+Total for Orchard Lodge Care Home,Payment Period from 01/05/2026 to 28/05/2026,Mr,"Test, Arthur (DEV-SEFTON-001)",0,760.0,01/05/2026 - 28/05/2026,
+Total for Orchard Lodge Care Home,Payment Period from 01/05/2026 to 28/05/2026,Ms,"Noemail, Bella (DEV-SEFTON-002)",1,375.0,01/05/2026 - 28/05/2026,
+Total for Orchard Lodge Care Home,Payment Period from 01/05/2026 to 28/05/2026,Ms,"Noemail, Bella (DEV-SEFTON-002)",0,830.0,01/05/2026 - 28/05/2026,
+Total for Orchard Lodge Care Home,Payment Period from 01/05/2026 to 28/05/2026,Miss,"Cash, Eva (DEV-SEFTON-005)",1,215.5,01/05/2026 - 14/05/2026,
+Total for Orchard Lodge Care Home,Payment Period from 01/05/2026 to 28/05/2026,Miss,"Cash, Eva (DEV-SEFTON-005)",0,620.0,01/05/2026 - 28/05/2026,

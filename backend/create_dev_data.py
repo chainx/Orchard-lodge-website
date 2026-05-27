@@ -20,6 +20,21 @@ DEV_USERNAME = 'orchard-dev'
 DEV_PASSWORD = 'orchard-dev-password'
 
 
+def main():
+    create_dummy_secret_files()
+    reset_database()
+    create_residents()
+    create_invoices()
+    create_payments()
+    create_sefton_payments()
+    produce_statements_of_account()
+    create_dummy_login_details()
+    create_dev_user()
+
+    print(f'Seeded fresh development database at {settings.DATABASES["default"]["NAME"]}')
+    print(f'Development login: {DEV_USERNAME} / {DEV_PASSWORD}')
+    
+
 def reset_database():
     db_path = Path(settings.DATABASES['default']['NAME'])
     if db_path.exists():
@@ -252,6 +267,72 @@ def create_payments():
 
 
 def create_sefton_payments():
+    remittance_folder = settings.MEDIA_REMITTANCE / '2026'
+    remittance_folder.mkdir(parents=True, exist_ok=True)
+
+    pd.DataFrame([
+        {
+            'ServiceTotalLabel': 'Total for Orchard Lodge Care Home',
+            'ReportContext': 'Payment Period from 01/05/2026 to 28/05/2026',
+            'Person': 'Mr',
+            'ClientName': 'Test, Arthur (DEV-SEFTON-001)',
+            'IsIncome': 1,
+            'Amount': 450.00,
+            'PaymentItemDates': '01/05/2026 - 28/05/2026',
+            'AdjustmentLabel': '',
+        },
+        {
+            'ServiceTotalLabel': 'Total for Orchard Lodge Care Home',
+            'ReportContext': 'Payment Period from 01/05/2026 to 28/05/2026',
+            'Person': 'Mr',
+            'ClientName': 'Test, Arthur (DEV-SEFTON-001)',
+            'IsIncome': 0,
+            'Amount': 760.00,
+            'PaymentItemDates': '01/05/2026 - 28/05/2026',
+            'AdjustmentLabel': '',
+        },
+        {
+            'ServiceTotalLabel': 'Total for Orchard Lodge Care Home',
+            'ReportContext': 'Payment Period from 01/05/2026 to 28/05/2026',
+            'Person': 'Ms',
+            'ClientName': 'Noemail, Bella (DEV-SEFTON-002)',
+            'IsIncome': 1,
+            'Amount': 375.00,
+            'PaymentItemDates': '01/05/2026 - 28/05/2026',
+            'AdjustmentLabel': '',
+        },
+        {
+            'ServiceTotalLabel': 'Total for Orchard Lodge Care Home',
+            'ReportContext': 'Payment Period from 01/05/2026 to 28/05/2026',
+            'Person': 'Ms',
+            'ClientName': 'Noemail, Bella (DEV-SEFTON-002)',
+            'IsIncome': 0,
+            'Amount': 830.00,
+            'PaymentItemDates': '01/05/2026 - 28/05/2026',
+            'AdjustmentLabel': '',
+        },
+        {
+            'ServiceTotalLabel': 'Total for Orchard Lodge Care Home',
+            'ReportContext': 'Payment Period from 01/05/2026 to 28/05/2026',
+            'Person': 'Miss',
+            'ClientName': 'Cash, Eva (DEV-SEFTON-005)',
+            'IsIncome': 1,
+            'Amount': 215.50,
+            'PaymentItemDates': '01/05/2026 - 14/05/2026',
+            'AdjustmentLabel': '',
+        },
+        {
+            'ServiceTotalLabel': 'Total for Orchard Lodge Care Home',
+            'ReportContext': 'Payment Period from 01/05/2026 to 28/05/2026',
+            'Person': 'Miss',
+            'ClientName': 'Cash, Eva (DEV-SEFTON-005)',
+            'IsIncome': 0,
+            'Amount': 620.00,
+            'PaymentItemDates': '01/05/2026 - 28/05/2026',
+            'AdjustmentLabel': '',
+        },
+    ]).to_csv(remittance_folder / '4. 01 May - 28 May.csv', index=False)
+
     rows = [
         (501, 201, 4, '2026-05-28', 2026, 76000),
         (502, 202, 4, '2026-05-28', 2026, 83000),
@@ -296,21 +377,6 @@ def create_dev_user():
         first_name='Orchard',
         last_name='Developer',
     )
-
-
-def main():
-    create_dummy_secret_files()
-    reset_database()
-    create_residents()
-    create_invoices()
-    create_payments()
-    create_sefton_payments()
-    produce_statements_of_account()
-    create_dummy_login_details()
-    create_dev_user()
-
-    print(f'Seeded fresh development database at {settings.DATABASES["default"]["NAME"]}')
-    print(f'Development login: {DEV_USERNAME} / {DEV_PASSWORD}')
 
 
 if __name__ == '__main__':
