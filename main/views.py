@@ -16,7 +16,7 @@ from .models import resident, invoice, payment, CUTOFF_DATE
 from backend.file_utils import file_num, latest_filename, latest_filenum
 from backend.get_sefton_data import get_remittance_advice
 from backend.invoices import get_invoice_data_from_sefton_csv, write_invoices_and_update_db, generate_unique_customer_reference_number
-from backend.payments import match_payments_to_resident
+from backend.payments import match_payments_to_resident, normalize_payment_filters, update_payments
 
 from django.conf import settings
 
@@ -54,12 +54,44 @@ def payments(request):
             'residents': resident.objects.all(),
         }
         if request.method=='POST':
-            filter_input = request.POST['filter_input']
+            if request.POST.get('form_type') == 'Update payments':
+                new_payments = update_payments()
+                request.session['new_payments'] = payments_to_session_records(new_payments)
+                return redirect('/payments/new/')
+
+            filter_input = request.POST['filter_input'].strip()
             resident_id = request.POST['resident_id']
-            multiple_matches = match_payments_to_resident(resident_id, filter_input)
-            if multiple_matches:
-                raise ValueError('Multiple matches!')
+            if filter_input and resident_id:
+                res = resident.objects.get(id=resident_id)
+                filters = normalize_payment_filters(res.filters) + normalize_payment_filters(filter_input)
+                filters = list(dict.fromkeys(filters))
+                res.filters = ';'.join(filters)
+                res.save()
+                match_payments_to_resident(res.id, filter_input, res.name)
+                return redirect('/payments')
         return render(request, "main/payments.html", data)
+    else:
+        return redirect('/login')
+
+def payments_to_session_records(payments_df):
+    records = []
+    for payment_ in payments_df.to_dict(orient='records'):
+        payment_date = payment_['date']
+        if hasattr(payment_date, 'strftime'):
+            payment_date = payment_date.strftime('%d/%m/%Y')
+
+        records.append({
+            'date': payment_date,
+            'description': payment_['description'],
+            'amount': str_total(payment_['amount']),
+        })
+    return records
+
+def new_payments(request):
+    if request.user.is_authenticated:
+        return render(request, "main/new_payments.html", {
+            'new_payments': request.session.get('new_payments', []),
+        })
     else:
         return redirect('/login')
 
