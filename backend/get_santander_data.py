@@ -163,6 +163,9 @@ def input_date_form_field(driver, to_or_from, day_month_year_type, day_month_yea
 # Santander has a limit on how many transactions can be downloaded in one go, so the full time period
 # must be split into 3 month components to ensure the limit is not reached
 def partition_dates(from_date, to_date): 
+    if from_date == to_date:
+        return [(from_date, to_date)]
+
     date_partition = [from_date]
     date = from_date
     while date < to_date:

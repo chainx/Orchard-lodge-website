@@ -17,7 +17,7 @@ from backend.get_santander_data import scrape_santander_bank_statements
 santander_file_path = os.path.join(settings.MEDIA_PAYMENTS, 'Santander')
 santander_file = os.path.join(settings.MEDIA_PAYMENTS, 'Santander.xlsx')
 
-def main():
+def update_payments():
     excel_payments = pd.read_excel(santander_file)
 
     from_date = datetime.strptime(excel_payments.iloc[0].Date, '%d/%m/%Y').date()
@@ -31,6 +31,7 @@ def main():
     print(new_payments)
     add_payments_to_db(new_payments)
     match_payments_wtih_existing_payment_filters()
+    return new_payments
 
 # ============================================================   UPDATE DB   ================================================================================
 
@@ -79,11 +80,15 @@ def get_new_payments(excel_payments, bank='Santander'):
 def match_payments_wtih_existing_payment_filters(verbose=True):
     for res in resident.objects.all():
         res_filters = res.filters.split(';') if res.filters else []
-        for res_filter in res_filters:
-            match_payments_to_resident(res.id, res_filters, res.name, verbose)
+        match_payments_to_resident(res.id, res_filters, res.name, verbose)
+
+def normalize_payment_filters(filters):
+    if isinstance(filters, str):
+        filters = filters.split(';')
+    return [filter.strip() for filter in filters if filter.strip()]
 
 def match_payments_to_resident(resident_id, filters, resident_name, verbose=True):
-    for filter in filters:
+    for filter in normalize_payment_filters(filters):
         matching_payments = payment.objects.filter(description__icontains=filter).exclude(Resident_id=resident_id)
         already_matched_payments = matching_payments.filter(Resident_id__isnull=False)
         if already_matched_payments:
@@ -198,4 +203,4 @@ def find_all_cash_payments(cutoff_date=CUTOFF_DATE):
 #=====================================================================================================================================================================
 
 if __name__=='__main__':
-    main()
+    update_payments()

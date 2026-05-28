@@ -32,6 +32,7 @@ urlpatterns = [
     path('residents/', views.residents, name="residents"),
     path('residents/<res_url>/',views.specific_resident, name="specific_resident"),
     path('payments/', views.payments, name="payments"),
+    path('payments/new/', views.new_payments, name="new_payments"),
     path('cash-and-cheques/', views.cash_and_cheques, name="cash_and_cheques"),
 
     path('upload/', views.upload, name="upload"),

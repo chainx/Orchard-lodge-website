@@ -5,12 +5,23 @@ Payments page
 {% endblock %}
 
 {% block content %}
-    <p>The purpose of this page is to create new filters to assign payments to residents.</p>
+    <form method="post" class="form-group" id="updatePaymentsForm">
+        {% csrf_token %}
+        <input type="hidden" name="form_type" value="Update payments">
+        <button type="submit" class="btn btn-primary btn-lg" id="updatePaymentsButton">
+            <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true" id="updatePaymentsSpinner"></span>
+            <span id="updatePaymentsButtonText">Update payments</span>
+        </button>
+        <p class="text-muted d-none" id="updatePaymentsMessage">
+            Updating payments. This usually takes about a minute or two.
+        </p>
+    </form>
 
     <h3>Payments without matching resident / payer.</h3>
-    
+    <p>Create new filters to assign unmatched payments to residents.<br>To add multiple filters to a single resident, separate each filter by a semicolon, so for example "filter1;filter2".</p>
     <form method="post" class="form-group">
         {% csrf_token %}
+        <input type="hidden" name="form_type" value="Payment filter">
 
         <select id="residentSelect" name="resident_id" style="width: 50%">
             <option value="" selected>Select a resident</option>
@@ -62,6 +73,13 @@ Payments page
             var selectedFilter = $(this).find('option:selected').data('filter');
             // Update the value of the filter_input
             $('#filter_input').val(selectedFilter);
+        });
+
+        $('#updatePaymentsForm').submit(function() {
+            $('#updatePaymentsButton').prop('disabled', true);
+            $('#updatePaymentsSpinner').removeClass('d-none');
+            $('#updatePaymentsButtonText').text('Updating...');
+            $('#updatePaymentsMessage').removeClass('d-none');
         });
     });
 </script> 
