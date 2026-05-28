@@ -116,6 +116,16 @@ class sefton_login_details(models.Model):
     password = models.CharField(max_length=256, blank=True, null=True)
     passcode = models.CharField(max_length=6, blank=True, null=True)
 
+class sefton_action_item(models.Model):
+    action_id = models.CharField(max_length=64, unique=True)
+    title = models.CharField(max_length=256)
+    relates_to = models.CharField(max_length=256, blank=True)
+    conversation = models.JSONField(default=list)
+    downloaded_at = models.DateTimeField(blank=True, null=True)
+
+    def __str__(self):
+        return f'{self.action_id}: {self.title}'
+
 def default_cover_letter_thresholds():
     return {'lower': 0, 'upper': 1e8, 'urgent_upper': 1e10}
 
@@ -136,4 +146,3 @@ class global_variables(models.Model):
     def load(cls):
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj
-

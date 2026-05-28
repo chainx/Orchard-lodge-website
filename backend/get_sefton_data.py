@@ -3,6 +3,7 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from datetime import datetime, date
+from zoneinfo import ZoneInfo
 import shutil
 import json
 import string
@@ -21,7 +22,9 @@ django.setup()
 
 from django.conf import settings
 from django.utils import timezone
-from main.models import global_variables, sefton_login_details
+from main.models import global_variables, sefton_action_item, sefton_login_details
+
+SEFTON_TIMEZONE = ZoneInfo('Europe/London')
 
 origin = 'https://providerportal.sefton.gov.uk'
 base_url = origin + '/ProviderPortal_IAS_Live/secure/'
@@ -32,6 +35,20 @@ options.set_preference("browser.download.folderList", 2)
 options.set_preference("browser.download.manager.showWhenStarting", False)
 options.set_preference("browser.download.dir", str(settings.MEDIA_REMITTANCE))
 options.set_preference("pdfjs.disabled", True)
+
+def get_latest_action_items():
+    driver = webdriver.Firefox(options=options, service=Service(GeckoDriverManager().install()))
+    driver = login(driver)
+    action_items = check_for_new_sefton_action_items(driver)
+    driver.quit()
+
+    downloaded_at = timezone.now()
+    for action_id, action_item in action_items:
+        action_item['downloaded_at'] = downloaded_at
+        sefton_action_item.objects.update_or_create(action_id=action_id, defaults=action_item)
+    variables = global_variables.load()
+    variables.last_action_item_downloaded_at = downloaded_at
+    variables.save()
 
 def get_remittance_advice(period_id=None, download_csv=True, download_pdf=True):	   
     driver = webdriver.Firefox(options=options, service=Service(GeckoDriverManager().install()))
@@ -137,6 +154,38 @@ def download_sefton_statements(driver, period_id=None, download_csv=True, downlo
     
     return period_range
 
+def check_for_new_sefton_action_items(driver, cutoff_time=None):
+    cutoff_time = global_variables.load().last_action_item_downloaded_at
+    
+    driver.get(base_url+'actionsandchangerequests.aspx')
+    action_table = driver.find_element(By.ID, "ContentPlaceHolderMain_actionsList_gridViewActions")
+    action_ids = []
+    for row in action_table.find_elements(By.XPATH, ".//tr[td]"):
+        timestamp_str = row.find_element(By.XPATH, "./td[2]").text.strip()
+        timestamp = timezone.make_aware(datetime.strptime(timestamp_str, "%d/%m/%Y %H:%M"), SEFTON_TIMEZONE)
+        if timestamp > cutoff_time:
+            id_element = row.find_element(By.XPATH, ".//a[contains(@href, 'actiondetails.aspx?action=')]")
+            action_ids.append(id_element.get_attribute("href").split("action=")[1].split("&")[0])
+
+    return [extract_sefton_action_item(driver, action_id) for action_id in action_ids]
+
+def extract_sefton_action_item(driver, action_id):
+    driver.get(base_url+f'actiondetails.aspx?action={action_id}')
+    action = driver.find_element(By.ID, 'actionbackground')
+
+    title = action.find_element(By.CSS_SELECTOR, "p.actiontitle").text.strip()
+    relates_to = action.find_element(By.CSS_SELECTOR, "p.actionrelatedentity").text.strip()
+
+    conversation = []
+    for post in action.find_elements(By.CSS_SELECTOR, "div.actionpost"):
+        info_text = post.find_element(By.CSS_SELECTOR, "p.actionpost-details-info b").text.strip()
+        day, month, year, time, sender = info_text.split(maxsplit=4)
+        sent_at = timezone.make_aware(datetime.strptime(f"{day} {month} {year} {time}", "%d %b %Y %H:%M"), SEFTON_TIMEZONE)
+        message = post.find_element(By.CSS_SELECTOR,"p.actionpost-details-text").text.strip()
+        conversation.append({'sender': sender, 'sent_at': sent_at.isoformat(), 'message': message})
+
+    return action_id, {"title": title, "relates_to": relates_to, "conversation": conversation}
+
 def filter_options(option, min_date, max_date):
     keep = True
     end_date = datetime.strptime(option.text.split(' - ')[1], '%d/%m/%Y').date()
@@ -183,5 +232,6 @@ def generate_new_password():
     return new_password
 
 if __name__ == "__main__":
-    get_remittance_advice()
+    get_latest_action_items()
+    # get_remittance_advice()
     # get_historical_remittance_advice(date(2017,12,31), date(2022,1,1))
