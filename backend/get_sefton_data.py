@@ -20,7 +20,8 @@ import django
 django.setup()
 
 from django.conf import settings
-from main.models import sefton_login_details
+from django.utils import timezone
+from main.models import global_variables, sefton_login_details
 
 origin = 'https://providerportal.sefton.gov.uk'
 base_url = origin + '/ProviderPortal_IAS_Live/secure/'
@@ -34,18 +35,19 @@ options.set_preference("pdfjs.disabled", True)
 
 def get_remittance_advice(period_id=None, download_csv=True, download_pdf=True):	   
     driver = webdriver.Firefox(options=options, service=Service(GeckoDriverManager().install()))
-    SEFTON_LOGIN_DETAILS = sefton_login_details.objects.get(id=1)
-    driver = login(driver, SEFTON_LOGIN_DETAILS.email, SEFTON_LOGIN_DETAILS.password, SEFTON_LOGIN_DETAILS.passcode)
+    driver = login(driver)
     period_range = download_sefton_statements(driver, period_id, download_csv, download_pdf)
     driver.quit()
 
     filename = file_manipulation(period_range)
+    variables = global_variables.load()
+    variables.last_remittance_advice_downloaded_at = timezone.now()
+    variables.save()
     return filename
 
 def get_historical_remittance_advice(min_date, max_date):
     driver = webdriver.Firefox(options=options, service=Service(GeckoDriverManager().install()))
-    SEFTON_LOGIN_DETAILS = sefton_login_details.objects.get(id=1)
-    driver = login(driver, SEFTON_LOGIN_DETAILS.email, SEFTON_LOGIN_DETAILS.password, SEFTON_LOGIN_DETAILS.passcode)
+    driver = login(driver)
     
     period_ids = download_sefton_statements(driver, min_date=min_date, max_date=max_date)
     for period_id in period_ids:
@@ -71,7 +73,10 @@ def file_manipulation(period_range):
 # ======================================================================================================================
 
 
-def login(driver, email, password, passcode):                  
+def login(driver):                  
+    SEFTON_LOGIN_DETAILS = sefton_login_details.objects.get(id=1)
+    email, password, passcode = SEFTON_LOGIN_DETAILS.email, SEFTON_LOGIN_DETAILS.password, SEFTON_LOGIN_DETAILS.passcode
+
     driver.get(base_url+'home.aspx')
 
     email_field = driver.find_element(By.ID, 'ContentPlaceHolderMain_txtEmail')

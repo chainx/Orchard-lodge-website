@@ -8,10 +8,11 @@ import django
 django.setup()
 
 from django.conf import settings
+from django.utils import timezone
 from django.db.models import F, Value, Q, Sum
 from django.db.models.functions import Concat
 
-from main.models import resident, payment, CUTOFF_DATE
+from main.models import global_variables, resident, payment
 from backend.get_santander_data import scrape_santander_bank_statements
 
 santander_file_path = os.path.join(settings.MEDIA_PAYMENTS, 'Santander')
@@ -31,6 +32,9 @@ def update_payments():
     print(new_payments)
     add_payments_to_db(new_payments)
     match_payments_wtih_existing_payment_filters()
+    variables = global_variables.load()
+    variables.last_bank_statement_downloaded_at = timezone.now()
+    variables.save()
     return new_payments
 
 # ============================================================   UPDATE DB   ================================================================================
@@ -190,7 +194,9 @@ excel_to_db_cols = {
 def convert_to_pennies(amount):
     return int(amount.split()[1].replace(',','').replace('.',''))
 
-def find_all_cash_payments(cutoff_date=CUTOFF_DATE):
+def find_all_cash_payments(cutoff_date=None):
+    if cutoff_date is None:
+        cutoff_date = global_variables.load().payments_invoices_cutoff_date
     payments = payment.objects.filter(Q(date__gt=cutoff_date) & Q(type='Cash'))
     total = payments.aggregate(total=Sum('amount'))['total']
     print(f"£{total/100:,.2f}")

@@ -3,8 +3,8 @@ import datetime
 from django.db import models
 from django.core.validators import MinLengthValidator
 
-# For the purposes of the resident dashboard, invoices and payments before the CUT_OFF date aren't considered
-CUTOFF_DATE = datetime.date(2023, 3, 1) # datetime.strptime(settings.CUTOFF_DATE, '%Y-%m-%d').date()
+def payments_invoices_cutoff_date():
+    return global_variables.load().payments_invoices_cutoff_date
 
 class resident(models.Model):
     title = models.CharField(max_length=8)
@@ -32,17 +32,17 @@ class resident(models.Model):
         return '-'.join([self.title, self.first.replace(' ', '_'), self.last.replace(' ', '_')])
     
     def total_invoiced(self):
-        return sum([invoice_.total for invoice_ in self.invoice_set.filter(date__gte=CUTOFF_DATE, obsolete=False)])
+        return sum([invoice_.total for invoice_ in self.invoice_set.filter(date__gte=payments_invoices_cutoff_date(), obsolete=False)])
     def total_payed(self):
-        return sum([payment_.amount for payment_ in self.payment_set.filter(date__gte=CUTOFF_DATE)])
+        return sum([payment_.amount for payment_ in self.payment_set.filter(date__gte=payments_invoices_cutoff_date())])
     def total_owed(self):
         return self.total_invoiced() - self.total_payed()
     def len_invoices(self):
-        return len(self.invoice_set.filter(date__gte=CUTOFF_DATE, obsolete=False))
+        return len(self.invoice_set.filter(date__gte=payments_invoices_cutoff_date(), obsolete=False))
     def len_payments(self):
-        return len(self.payment_set.filter(date__gte=CUTOFF_DATE))
+        return len(self.payment_set.filter(date__gte=payments_invoices_cutoff_date()))
     def total_sefton_payed(self):
-        return sum([payment_.total for payment_ in self.sefton_payment_set.filter(date__gte=CUTOFF_DATE)])
+        return sum([payment_.total for payment_ in self.sefton_payment_set.filter(date__gte=payments_invoices_cutoff_date())])
 
     def __str__(self):
         return self.name
@@ -115,3 +115,25 @@ class sefton_login_details(models.Model):
     email = models.CharField(max_length=256, blank=True, null=True)
     password = models.CharField(max_length=256, blank=True, null=True)
     passcode = models.CharField(max_length=6, blank=True, null=True)
+
+def default_cover_letter_thresholds():
+    return {'lower': 0, 'upper': 1e8, 'urgent_upper': 1e10}
+
+class global_variables(models.Model):
+    last_bank_statement_downloaded_at = models.DateTimeField(blank=True, null=True)
+    last_remittance_advice_downloaded_at = models.DateTimeField(blank=True, null=True)
+    last_action_item_downloaded_at = models.DateTimeField(blank=True, null=True)
+    payments_invoices_cutoff_date = models.DateField(default=datetime.date(2023, 3, 1))
+    recently_left_cutoff_date = models.DateField(default=datetime.date(2025, 2, 1))
+    unmatched_payment_cutoff_date = models.DateField(default=datetime.date(2025, 4, 1))
+    statement_cover_letter_thresholds = models.JSONField(default=default_cover_letter_thresholds)
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
