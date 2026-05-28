@@ -14,7 +14,7 @@ from django.core.management import call_command
 
 from backend.invoices import write_inovice
 from backend.statement_of_account import produce_statements_of_account, write_cover_letter, write_statement_of_account
-from main.models import invoice, payment, resident, sefton_login_details, sefton_payment
+from main.models import global_variables, invoice, payment, resident, sefton_login_details, sefton_payment
 
 DEV_USERNAME = 'orchard-dev'
 DEV_PASSWORD = 'orchard-dev-password'
@@ -23,6 +23,7 @@ DEV_PASSWORD = 'orchard-dev-password'
 def main():
     create_dummy_secret_files()
     reset_database()
+    create_global_variables()
     create_residents()
     create_invoices()
     create_payments()
@@ -42,6 +43,10 @@ def reset_database():
 
     db_path.parent.mkdir(parents=True, exist_ok=True)
     call_command('migrate', skip_checks=True, verbosity=0)
+
+
+def create_global_variables():
+    global_variables.load().save()
 
 
 def create_dummy_secret_files():

@@ -11,7 +11,7 @@ from django.contrib import messages
 from django.core.files.storage import FileSystemStorage
 
 from .forms import UploadFileForm, ResidentForm
-from .models import resident, invoice, payment, CUTOFF_DATE
+from .models import global_variables, resident, invoice, payment
 
 from backend.file_utils import file_num, latest_filename, latest_filenum
 from backend.get_sefton_data import get_remittance_advice
@@ -49,8 +49,9 @@ def home(request):
 
 def payments(request):
     if request.user.is_authenticated:
+        cutoff_date = global_variables.load().unmatched_payment_cutoff_date
         data = {
-            'unmatched_payments': payment.objects.filter(Resident_id__isnull=True, date__gte=date(2025,4,1)).order_by('date').reverse(),
+            'unmatched_payments': payment.objects.filter(Resident_id__isnull=True, date__gte=cutoff_date).order_by('date').reverse(),
             'residents': resident.objects.all(),
         }
         if request.method=='POST':
@@ -130,11 +131,12 @@ def compile_resident_table(residents, include_date_left=False):
 
 def residents(request):
     if request.user.is_authenticated:
+        cutoff_date = global_variables.load().recently_left_cutoff_date
         residents = resident.objects.exclude(first='Council').exclude(first='Cheques').order_by('last')
         data = {
             'resident_info_table':  compile_resident_table(residents.filter(current=True, private=False)),
             'private_resident_info_table': compile_resident_table(residents.filter(current=True, private=True)),
-            'recent_resident_info_table': compile_resident_table(residents.filter(leave_date__gt=date(2025,2,1)), include_date_left=True),
+            'recent_resident_info_table': compile_resident_table(residents.filter(leave_date__gt=cutoff_date), include_date_left=True),
             'former_residents' : residents.filter(current=False),
         }
 
@@ -156,14 +158,15 @@ def residents(request):
 
 def specific_resident(request, res_url):
     if request.user.is_authenticated:
+        cutoff_date = global_variables.load().payments_invoices_cutoff_date
         title, first, last = res_url.split('-')
         res = resident.objects.get(title=title, first=first.replace('_', ' '), last=last.replace('_', ' '))
         
         data = {
             'res':res,
-            'unmatched_invoices':res.invoice_set.filter(obsolete=False, matched=False).order_by('date').filter(date__gte=CUTOFF_DATE),#.reverse(),
-            'unmatched_payments':res.payment_set.filter(matched=False).order_by('date').filter(date__gte=CUTOFF_DATE),#.reverse(),
-            'sefton_payments': res.sefton_payment_set.order_by('date').filter(date__gte=CUTOFF_DATE),#.reverse(),
+            'unmatched_invoices':res.invoice_set.filter(obsolete=False, matched=False).order_by('date').filter(date__gte=cutoff_date),#.reverse(),
+            'unmatched_payments':res.payment_set.filter(matched=False).order_by('date').filter(date__gte=cutoff_date),#.reverse(),
+            'sefton_payments': res.sefton_payment_set.order_by('date').filter(date__gte=cutoff_date),#.reverse(),
             'resident_form': ResidentForm(instance=res),
         }
         data['accepted_matches'] = []

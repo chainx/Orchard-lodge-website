@@ -15,14 +15,10 @@ from shutil import which
 import django
 django.setup()
 from django.conf import settings
-from main.models import resident, invoice, payment, CUTOFF_DATE
+from main.models import global_variables, resident, invoice, payment
 from backend.invoices import get_residents_with_similar_name
 
 BASE_FOLDER = settings.MEDIA_INVOICES / 'Statements of account'
-
-cover_letter_lower_threshold = 0 #£0
-cover_letter_upper_threshold        = 1000000000 # Set to absurdly high values
-urgent_cover_letter_upper_threshold = 10000000000 # so that these templates aren't used        
 
 def main():
     # write_cover_letter(BASE_FOLDER,1,resident.objects.get(id=88)) #193
@@ -36,6 +32,8 @@ def main():
 #==================================================================================================================================================================
 
 def produce_statements_of_account(recently_left=False, include_cover_letter=True, convert_to_pdf=None):    
+    auto_convert_to_pdf = convert_to_pdf is None
+    recently_left_cutoff_date = global_variables.load().recently_left_cutoff_date
     if convert_to_pdf is None:
         convert_to_pdf = can_convert_to_pdf()
 
@@ -44,7 +42,7 @@ def produce_statements_of_account(recently_left=False, include_cover_letter=True
     if not recently_left:
         residents = resident.objects.filter(current=True)
     else:
-        residents = resident.objects.filter(leave_date__gt=date(2025,2,1))
+        residents = resident.objects.filter(leave_date__gt=recently_left_cutoff_date)
     resident_list = sorted(list(residents), key = lambda x: x.total_owed(), reverse=True)
 
     os.makedirs(folder, exist_ok=True)
@@ -52,12 +50,21 @@ def produce_statements_of_account(recently_left=False, include_cover_letter=True
     count = 1
     for res in resident_list:
         if res.total_owed() != 0:
-            statement_of_account = write_statement_of_account(folder, count, res, convert_to_pdf=convert_to_pdf)
-            cover_letter = None
-            if include_cover_letter:
-                cover_letter = write_cover_letter(folder, count, res, convert_to_pdf=convert_to_pdf)
-            if convert_to_pdf:
-                merge_pdfs(cover_letter, statement_of_account)
+            try:
+                statement_of_account = write_statement_of_account(folder, count, res, convert_to_pdf=convert_to_pdf)
+                cover_letter = None
+                if include_cover_letter:
+                    cover_letter = write_cover_letter(folder, count, res, convert_to_pdf=convert_to_pdf)
+                if convert_to_pdf:
+                    merge_pdfs(cover_letter, statement_of_account)
+            except RuntimeError as exc:
+                if not auto_convert_to_pdf or not convert_to_pdf:
+                    raise
+                print(f'PDF conversion failed; falling back to DOCX statements: {exc}')
+                convert_to_pdf = False
+                write_statement_of_account(folder, count, res, convert_to_pdf=convert_to_pdf)
+                if include_cover_letter:
+                    write_cover_letter(folder, count, res, convert_to_pdf=convert_to_pdf)
             count+=1
         else:
             print(res.name)
@@ -72,6 +79,10 @@ def produce_statements_of_account(recently_left=False, include_cover_letter=True
     # produce_summary_table(resident_list, filename, recently_left)
 
 def write_cover_letter(folder, count, res, convert_to_pdf=True):
+    thresholds = global_variables.load().statement_cover_letter_thresholds
+    cover_letter_lower_threshold = thresholds['lower']
+    cover_letter_upper_threshold = thresholds['upper']
+    urgent_cover_letter_upper_threshold = thresholds['urgent_upper']
 
     if res.total_owed() < cover_letter_lower_threshold:
         return
@@ -103,6 +114,7 @@ def write_cover_letter(folder, count, res, convert_to_pdf=True):
     return f'{filename}.docx'
 
 def write_statement_of_account(folder, count, res, convert_to_pdf=True):
+    cutoff_date = global_variables.load().payments_invoices_cutoff_date
 
     document = Document(settings.MEDIA_INVOICES_TEMPLATES / 'STATEMENT OF ACCOUNT TEMPLATE.docx')
 
@@ -122,7 +134,7 @@ def write_statement_of_account(folder, count, res, convert_to_pdf=True):
     run = document.tables[0].cell(1, 2).paragraphs[0].add_run(str_total(res.total_owed()))
     run.bold = True
 
-    for i, inv in enumerate(res.invoice_set.filter(obsolete=False).order_by('date').filter(date__gte=CUTOFF_DATE)):
+    for i, inv in enumerate(res.invoice_set.filter(obsolete=False).order_by('date').filter(date__gte=cutoff_date)):
         new_row = document.tables[1].add_row()
         copy_row_format(document.tables[1].rows[0], new_row)
         new_row.cells[0].text = inv.date.strftime('%d/%m/%Y')
@@ -130,7 +142,7 @@ def write_statement_of_account(folder, count, res, convert_to_pdf=True):
         new_row.cells[2].text = str(inv.batch_number)
         new_row.cells[3].text = str_total(inv.total)
 
-    for i, pay in enumerate(res.payment_set.order_by('date').filter(date__gte=CUTOFF_DATE)):
+    for i, pay in enumerate(res.payment_set.order_by('date').filter(date__gte=cutoff_date)):
         new_row = document.tables[2].add_row()
         copy_row_format(document.tables[2].rows[0], new_row)
         new_row.cells[0].text = pay.date.strftime('%d/%m/%Y')
