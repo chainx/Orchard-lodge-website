@@ -22,6 +22,7 @@ django.setup()
 
 from django.conf import settings
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 from main.models import global_variables, sefton_action_item, sefton_login_details
 
 SEFTON_TIMEZONE = ZoneInfo('Europe/London')
@@ -184,7 +185,14 @@ def extract_sefton_action_item(driver, action_id):
         message = post.find_element(By.CSS_SELECTOR,"p.actionpost-details-text").text.strip()
         conversation.append({'sender': sender, 'sent_at': sent_at.isoformat(), 'message': message})
 
-    return action_id, {"title": title, "relates_to": relates_to, "conversation": conversation}
+    return action_id, {"title": title, "relates_to": relates_to, "last_post_at": last_post_at(conversation), "conversation": conversation}
+
+def last_post_at(conversation):
+    sent_times = [parse_datetime(post['sent_at']) for post in conversation if post.get('sent_at')]
+    sent_times = [sent_at for sent_at in sent_times if sent_at is not None]
+    if sent_times:
+        return max(sent_times)
+    return None
 
 def filter_options(option, min_date, max_date):
     keep = True

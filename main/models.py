@@ -121,6 +121,7 @@ class sefton_action_item(models.Model):
     title = models.CharField(max_length=256)
     relates_to = models.CharField(max_length=256, blank=True)
     conversation = models.JSONField(default=list)
+    last_post_at = models.DateTimeField(blank=True, null=True)
     downloaded_at = models.DateTimeField(blank=True, null=True)
 
     def __str__(self):
