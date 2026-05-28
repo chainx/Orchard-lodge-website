@@ -1,0 +1,89 @@
+{% extends 'main/base.html' %}
+
+{% block title %}
+Sefton action item {{action_item.action_id}}
+{% endblock %}
+
+{% block style %}
+    {{ block.super }}
+    <style>
+        .conversation-thread {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 1rem;
+        }
+
+        .action-item-title {
+            font-size: 2rem;
+            font-weight: 500;
+            margin-bottom: 0.25rem;
+        }
+
+        .action-item-relates-to {
+            color: #6c757d;
+            font-size: 1.2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .conversation-post {
+            display: flex;
+            flex-direction: column;
+            max-width: 72%;
+            margin-bottom: 1rem;
+        }
+
+        .conversation-post.orchard {
+            align-self: flex-end;
+        }
+
+        .conversation-post.council {
+            align-self: flex-start;
+        }
+
+        .conversation-meta {
+            color: #6c757d;
+            font-size: 0.85rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .conversation-post.orchard .conversation-meta {
+            text-align: right;
+        }
+
+        .conversation-message {
+            border: 1px solid #dee2e6;
+            border-radius: 0.5rem;
+            padding: 0.75rem 1rem;
+            white-space: pre-wrap;
+        }
+
+        .conversation-post.orchard .conversation-message {
+            background: #e7f1ff;
+        }
+
+        .conversation-post.council .conversation-message {
+            background: #f8f9fa;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="action-item-title">{{action_item.title}}</div>
+    <div class="action-item-relates-to">{{action_item.relates_to}}</div>
+
+    <div class="conversation-thread">
+        {% for post in conversation_posts %}
+            <div class="conversation-post {% if 'Orchard' in post.sender %}orchard{% else %}council{% endif %}">
+                <div class="conversation-meta">
+                    <strong>{{post.sender}}</strong>
+                    <span>{{post.sent_at}}</span>
+                </div>
+                <div class="conversation-message">{{post.message}}</div>
+            </div>
+        {% empty %}
+            <p>No conversation posts found.</p>
+        {% endfor %}
+    </div>
+
+    <a href="/sefton-action-items" class="btn btn-primary">Back to action items</a>
+{% endblock %}

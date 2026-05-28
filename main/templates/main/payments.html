@@ -8,10 +8,13 @@ Payments page
     <form method="post" class="form-group" id="updatePaymentsForm">
         {% csrf_token %}
         <input type="hidden" name="form_type" value="Update payments">
-        <button type="submit" class="btn btn-primary btn-lg" id="updatePaymentsButton">
-            <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true" id="updatePaymentsSpinner"></span>
-            <span id="updatePaymentsButtonText">Update payments</span>
-        </button>
+        <div class="d-flex align-items-center">
+            <button type="submit" class="btn btn-primary btn-lg" id="updatePaymentsButton">
+                <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true" id="updatePaymentsSpinner"></span>
+                <span id="updatePaymentsButtonText">Update payments</span>
+            </button>
+            <span class="text-muted ml-3">Last downloaded: {{last_downloaded_at}}</span>
+        </div>
         <p class="text-muted d-none" id="updatePaymentsMessage">
             Updating payments. This usually takes about a minute or two.
         </p>
