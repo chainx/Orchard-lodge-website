@@ -36,11 +36,12 @@ FILE_FORMAT_DICT = { # These file format values were obtained from the HTML of t
     'Adobe Acrobat (PDF)': '4',
     'Text file (TXT)': '5',
 }
+DOWNLOAD_FOLDER = settings.MEDIA_PAYMENTS / 'Santander'
 
 options = Options()
 options.add_argument("user-data-dir="+COOKIE_DIR)
 options.add_experimental_option("prefs", {
-    "download.default_directory": str(settings.MEDIA_PAYMENTS / 'Santander')
+    "download.default_directory": str(DOWNLOAD_FOLDER)
 })
 
 def main():
@@ -89,14 +90,33 @@ def download_bank_statement(driver, from_date, to_date, file_format='Microsoft E
     except:
         print('File format cannot be selected')
 
-    try:
-        download_button = driver.find_element(By.NAME, "downloadStatementsForm.events.0")
-        if download:
-            download_button.click()
-            print(f'Download for period from {from_date} to {to_date} complete!')
-            time.sleep(1) # Put a better wait condition here
-    except:
-        print('Download failed')
+    download_button = driver.find_element(By.NAME, "downloadStatementsForm.events.0")
+    if download:
+        existing_files = completed_downloads()
+        download_button.click()
+        wait_for_download(existing_files)
+        print(f'Download for period from {from_date} to {to_date} complete!')
+
+def wait_for_download(existing_files, timeout=5):
+    start_time = time.monotonic()
+    while time.monotonic() - start_time < timeout:
+        in_progress = [
+            file for file in os.listdir(DOWNLOAD_FOLDER)
+            if file.endswith(('.crdownload', '.tmp'))
+        ]
+        new_files = completed_downloads() - existing_files
+        if new_files and not in_progress:
+            return new_files
+        time.sleep(0.2)
+
+    raise TimeoutError(f'Santander statement download did not complete within {timeout} seconds')
+
+def completed_downloads():
+    os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
+    return {
+        file for file in os.listdir(DOWNLOAD_FOLDER)
+        if file.endswith('.xls') and '.~lock.' not in file
+    }
 
 # =========================================================================================================================================================
 
