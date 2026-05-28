@@ -1,5 +1,6 @@
 import os
 import json
+import argparse
 from pathlib import Path
 
 os.environ['DJANGO_SETTINGS_MODULE'] = 'OrchardLodge.settings.development'
@@ -11,27 +12,30 @@ import pandas as pd
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
+from django.utils.dateparse import parse_datetime
 
 from backend.invoices import write_inovice
-from backend.statement_of_account import produce_statements_of_account, write_cover_letter, write_statement_of_account
+from backend.statement_of_account import produce_statements_of_account
 from main.models import global_variables, invoice, payment, resident, sefton_action_item, sefton_login_details, sefton_payment
 
 DEV_USERNAME = 'orchard-dev'
 DEV_PASSWORD = 'orchard-dev-password'
 
 
-def main():
-    create_dummy_secret_files()
+def main(produce_files=False):
     reset_database()
     create_global_variables()
+    if produce_files:
+        create_dummy_secret_files()
     create_residents()
-    create_invoices()
+    create_invoices(produce_files)
     create_payments()
-    create_sefton_payments()
+    create_sefton_payments(produce_files)
     create_sefton_action_items()
-    produce_statements_of_account()
-    create_dummy_login_details()
+    if produce_files:
+        produce_statements_of_account()
     create_dev_user()
+    create_dummy_login_details()
 
     print(f'Seeded fresh development database at {settings.DATABASES["default"]["NAME"]}')
     print(f'Development login: {DEV_USERNAME} / {DEV_PASSWORD}')
@@ -176,7 +180,7 @@ def create_residents():
         resident.objects.create(**row)
 
 
-def create_invoices():
+def create_invoices(produce_files):
     invoice_folder = settings.MEDIA_INVOICES / '2026' / '4. 27 May 2026'
     rows = [
         (301, 201, '02001', '01/05/2026', '28/05/2026', 45000, False, False),
@@ -187,7 +191,8 @@ def create_invoices():
         (306, 204, '01988', '01/03/2025', '14/03/2025', 18000, True, False),
     ]
 
-    invoice_folder.mkdir(parents=True, exist_ok=True)
+    if produce_files:
+        invoice_folder.mkdir(parents=True, exist_ok=True)
     for id_, resident_id, number, start, end, total, obsolete, matched in rows:
         Resident = resident.objects.get(id=resident_id)
         sub_items = pd.DataFrame({
@@ -195,16 +200,17 @@ def create_invoices():
             'PaymentItemDates': [f'{start} - {end}'],
             'AdjustmentLabel': [''],
         })
-        write_inovice(
-            invoice_folder,
-            '27 May 2026',
-            Resident,
-            sub_items,
-            total,
-            number,
-            batch_number=4,
-        )
         filename = invoice_folder / f'{number} - {Resident.name}.docx'
+        if produce_files:
+            write_inovice(
+                invoice_folder,
+                '27 May 2026',
+                Resident,
+                sub_items,
+                total,
+                number,
+                batch_number=4,
+            )
         invoice.objects.create(
             id=id_,
             Resident_id=resident_id,
@@ -219,22 +225,24 @@ def create_invoices():
         )
 
     older_folder = settings.MEDIA_INVOICES / '2025' / '9. 31 December 2025'
-    older_folder.mkdir(parents=True, exist_ok=True)
+    if produce_files:
+        older_folder.mkdir(parents=True, exist_ok=True)
     Resident = resident.objects.get(id=201)
     sub_items = pd.DataFrame({
         'Amount': [300],
         'PaymentItemDates': ['01/12/2025 - 31/12/2025'],
         'AdjustmentLabel': [''],
     })
-    write_inovice(
-        older_folder,
-        '31 December 2025',
-        Resident,
-        sub_items,
-        30000,
-        '01950',
-        batch_number=9,
-    )
+    if produce_files:
+        write_inovice(
+            older_folder,
+            '31 December 2025',
+            Resident,
+            sub_items,
+            30000,
+            '01950',
+            batch_number=9,
+        )
     older_filename = older_folder / '01950 - Mr Arthur Test.docx'
     invoice.objects.create(
         id=307,
@@ -272,72 +280,73 @@ def create_payments():
         )
 
 
-def create_sefton_payments():
-    remittance_folder = settings.MEDIA_REMITTANCE / '2026'
-    remittance_folder.mkdir(parents=True, exist_ok=True)
+def create_sefton_payments(produce_files):
+    if produce_files:
+        remittance_folder = settings.MEDIA_REMITTANCE / '2026'
+        remittance_folder.mkdir(parents=True, exist_ok=True)
 
-    pd.DataFrame([
-        {
-            'ServiceTotalLabel': 'Total for Orchard Lodge Care Home',
-            'ReportContext': 'Payment Period from 01/05/2026 to 28/05/2026',
-            'Person': 'Mr',
-            'ClientName': 'Test, Arthur (DEV-SEFTON-001)',
-            'IsIncome': 1,
-            'Amount': 450.00,
-            'PaymentItemDates': '01/05/2026 - 28/05/2026',
-            'AdjustmentLabel': '',
-        },
-        {
-            'ServiceTotalLabel': 'Total for Orchard Lodge Care Home',
-            'ReportContext': 'Payment Period from 01/05/2026 to 28/05/2026',
-            'Person': 'Mr',
-            'ClientName': 'Test, Arthur (DEV-SEFTON-001)',
-            'IsIncome': 0,
-            'Amount': 760.00,
-            'PaymentItemDates': '01/05/2026 - 28/05/2026',
-            'AdjustmentLabel': '',
-        },
-        {
-            'ServiceTotalLabel': 'Total for Orchard Lodge Care Home',
-            'ReportContext': 'Payment Period from 01/05/2026 to 28/05/2026',
-            'Person': 'Ms',
-            'ClientName': 'Noemail, Bella (DEV-SEFTON-002)',
-            'IsIncome': 1,
-            'Amount': 375.00,
-            'PaymentItemDates': '01/05/2026 - 28/05/2026',
-            'AdjustmentLabel': '',
-        },
-        {
-            'ServiceTotalLabel': 'Total for Orchard Lodge Care Home',
-            'ReportContext': 'Payment Period from 01/05/2026 to 28/05/2026',
-            'Person': 'Ms',
-            'ClientName': 'Noemail, Bella (DEV-SEFTON-002)',
-            'IsIncome': 0,
-            'Amount': 830.00,
-            'PaymentItemDates': '01/05/2026 - 28/05/2026',
-            'AdjustmentLabel': '',
-        },
-        {
-            'ServiceTotalLabel': 'Total for Orchard Lodge Care Home',
-            'ReportContext': 'Payment Period from 01/05/2026 to 28/05/2026',
-            'Person': 'Miss',
-            'ClientName': 'Cash, Eva (DEV-SEFTON-005)',
-            'IsIncome': 1,
-            'Amount': 215.50,
-            'PaymentItemDates': '01/05/2026 - 14/05/2026',
-            'AdjustmentLabel': '',
-        },
-        {
-            'ServiceTotalLabel': 'Total for Orchard Lodge Care Home',
-            'ReportContext': 'Payment Period from 01/05/2026 to 28/05/2026',
-            'Person': 'Miss',
-            'ClientName': 'Cash, Eva (DEV-SEFTON-005)',
-            'IsIncome': 0,
-            'Amount': 620.00,
-            'PaymentItemDates': '01/05/2026 - 28/05/2026',
-            'AdjustmentLabel': '',
-        },
-    ]).to_csv(remittance_folder / '4. 01 May - 28 May.csv', index=False)
+        pd.DataFrame([
+            {
+                'ServiceTotalLabel': 'Total for Orchard Lodge Care Home',
+                'ReportContext': 'Payment Period from 01/05/2026 to 28/05/2026',
+                'Person': 'Mr',
+                'ClientName': 'Test, Arthur (DEV-SEFTON-001)',
+                'IsIncome': 1,
+                'Amount': 450.00,
+                'PaymentItemDates': '01/05/2026 - 28/05/2026',
+                'AdjustmentLabel': '',
+            },
+            {
+                'ServiceTotalLabel': 'Total for Orchard Lodge Care Home',
+                'ReportContext': 'Payment Period from 01/05/2026 to 28/05/2026',
+                'Person': 'Mr',
+                'ClientName': 'Test, Arthur (DEV-SEFTON-001)',
+                'IsIncome': 0,
+                'Amount': 760.00,
+                'PaymentItemDates': '01/05/2026 - 28/05/2026',
+                'AdjustmentLabel': '',
+            },
+            {
+                'ServiceTotalLabel': 'Total for Orchard Lodge Care Home',
+                'ReportContext': 'Payment Period from 01/05/2026 to 28/05/2026',
+                'Person': 'Ms',
+                'ClientName': 'Noemail, Bella (DEV-SEFTON-002)',
+                'IsIncome': 1,
+                'Amount': 375.00,
+                'PaymentItemDates': '01/05/2026 - 28/05/2026',
+                'AdjustmentLabel': '',
+            },
+            {
+                'ServiceTotalLabel': 'Total for Orchard Lodge Care Home',
+                'ReportContext': 'Payment Period from 01/05/2026 to 28/05/2026',
+                'Person': 'Ms',
+                'ClientName': 'Noemail, Bella (DEV-SEFTON-002)',
+                'IsIncome': 0,
+                'Amount': 830.00,
+                'PaymentItemDates': '01/05/2026 - 28/05/2026',
+                'AdjustmentLabel': '',
+            },
+            {
+                'ServiceTotalLabel': 'Total for Orchard Lodge Care Home',
+                'ReportContext': 'Payment Period from 01/05/2026 to 28/05/2026',
+                'Person': 'Miss',
+                'ClientName': 'Cash, Eva (DEV-SEFTON-005)',
+                'IsIncome': 1,
+                'Amount': 215.50,
+                'PaymentItemDates': '01/05/2026 - 14/05/2026',
+                'AdjustmentLabel': '',
+            },
+            {
+                'ServiceTotalLabel': 'Total for Orchard Lodge Care Home',
+                'ReportContext': 'Payment Period from 01/05/2026 to 28/05/2026',
+                'Person': 'Miss',
+                'ClientName': 'Cash, Eva (DEV-SEFTON-005)',
+                'IsIncome': 0,
+                'Amount': 620.00,
+                'PaymentItemDates': '01/05/2026 - 28/05/2026',
+                'AdjustmentLabel': '',
+            },
+        ]).to_csv(remittance_folder / '4. 01 May - 28 May.csv', index=False)
 
     rows = [
         (501, 201, 4, '2026-05-28', 2026, 76000),
@@ -356,21 +365,12 @@ def create_sefton_payments():
         )
 
 
-def create_statements_of_account():
-    folder = settings.MEDIA_INVOICES / 'Statements of account'
-    folder.mkdir(parents=True, exist_ok=True)
-
-    residents = resident.objects.filter(id__in=[201, 202, 203, 205, 206]).order_by('last')
-    for count, Resident in enumerate(residents, start=1):
-        write_statement_of_account(folder, count, Resident)
-        write_cover_letter(folder, count, Resident)
-
-
 def create_sefton_action_items():
     sefton_action_item.objects.create(
         action_id='DEV-ACTION-001',
         title='Dummy funding query',
         relates_to='Mr Arthur Test',
+        last_post_at=parse_datetime('2026-05-20T10:30:00+01:00'),
         conversation=[
             {
                 'sender': 'Sefton Council',
@@ -406,4 +406,7 @@ def create_dev_user():
 
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(description='Create development database and optional development files.')
+    parser.add_argument('--produce-files', action='store_true', help='Generate dummy media and secret files as well as database rows.')
+    args = parser.parse_args()
+    main(produce_files=args.produce_files)
