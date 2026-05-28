@@ -14,7 +14,7 @@ from django.core.management import call_command
 
 from backend.invoices import write_inovice
 from backend.statement_of_account import produce_statements_of_account, write_cover_letter, write_statement_of_account
-from main.models import global_variables, invoice, payment, resident, sefton_login_details, sefton_payment
+from main.models import global_variables, invoice, payment, resident, sefton_action_item, sefton_login_details, sefton_payment
 
 DEV_USERNAME = 'orchard-dev'
 DEV_PASSWORD = 'orchard-dev-password'
@@ -28,6 +28,7 @@ def main():
     create_invoices()
     create_payments()
     create_sefton_payments()
+    create_sefton_action_items()
     produce_statements_of_account()
     create_dummy_login_details()
     create_dev_user()
@@ -363,6 +364,26 @@ def create_statements_of_account():
     for count, Resident in enumerate(residents, start=1):
         write_statement_of_account(folder, count, Resident)
         write_cover_letter(folder, count, Resident)
+
+
+def create_sefton_action_items():
+    sefton_action_item.objects.create(
+        action_id='DEV-ACTION-001',
+        title='Dummy funding query',
+        relates_to='Mr Arthur Test',
+        conversation=[
+            {
+                'sender': 'Sefton Council',
+                'sent_at': '2026-05-20T09:15:00+01:00',
+                'message': 'Please confirm the care dates for the May invoice.',
+            },
+            {
+                'sender': 'Orchard Lodge',
+                'sent_at': '2026-05-20T10:30:00+01:00',
+                'message': 'Care dates confirmed as 01/05/2026 to 28/05/2026.',
+            },
+        ],
+    )
 
 
 def create_dummy_login_details():
