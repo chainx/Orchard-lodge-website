@@ -1,0 +1,63 @@
+{% extends 'main/base.html' %}
+
+{% block title %}
+Sefton action items
+{% endblock %}
+
+{% block content %}
+    <form method="post" class="form-group" id="updateActionItemsForm">
+        {% csrf_token %}
+        <input type="hidden" name="form_type" value="Update action items">
+        <div class="d-flex align-items-center">
+            <button type="submit" class="btn btn-primary btn-lg" id="updateActionItemsButton">
+                <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true" id="updateActionItemsSpinner"></span>
+                <span id="updateActionItemsButtonText">Update action items</span>
+            </button>
+            <span class="text-muted ml-3">Last downloaded: {{last_downloaded_at}}</span>
+        </div>
+        <p class="text-muted d-none" id="updateActionItemsMessage">
+            Updating action items. This usually takes about half a minute.
+        </p>
+    </form>
+
+    <h3>Sefton action items</h3>
+
+    <table class="table table-bordered table-striped table-sm">
+        <thead>
+            <tr>
+                <th>Action ID</th>
+                <th>Title</th>
+                <th>Relates to</th>
+                <th>Last post</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for action_item in action_items %}
+                <tr>
+                    <td><a href="/sefton-action-items/{{action_item.action_id}}/">{{action_item.action_id}}</a></td>
+                    <td>{{action_item.title}}</td>
+                    <td>{{action_item.relates_to}}</td>
+                    <td>{{action_item.last_post_at}}</td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="4">No Sefton action items have been downloaded.</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+<script>
+    $(document).ready(function() {
+        $('#updateActionItemsForm').submit(function() {
+            $('#updateActionItemsButton').prop('disabled', true);
+            $('#updateActionItemsSpinner').removeClass('d-none');
+            $('#updateActionItemsButtonText').text('Updating...');
+            $('#updateActionItemsMessage').removeClass('d-none');
+        });
+    });
+</script>
+{% endblock %}

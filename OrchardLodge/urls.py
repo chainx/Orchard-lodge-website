@@ -33,6 +33,8 @@ urlpatterns = [
     path('residents/<res_url>/',views.specific_resident, name="specific_resident"),
     path('payments/', views.payments, name="payments"),
     path('payments/new/', views.new_payments, name="new_payments"),
+    path('sefton-action-items/', views.sefton_action_items, name="sefton_action_items"),
+    path('sefton-action-items/<str:action_id>/', views.sefton_action_item, name="sefton_action_item"),
     path('cash-and-cheques/', views.cash_and_cheques, name="cash_and_cheques"),
 
     path('upload/', views.upload, name="upload"),

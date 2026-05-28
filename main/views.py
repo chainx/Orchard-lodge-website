@@ -3,22 +3,27 @@ import pandas as pd
 from datetime import datetime, date
 import mimetypes
 from zipfile import ZipFile
+from zoneinfo import ZoneInfo
 
 from urllib.request import HTTPRedirectHandler
 from django.shortcuts import render, redirect
 from django.http import HttpResponse, HttpResponseRedirect
 from django.contrib import messages
 from django.core.files.storage import FileSystemStorage
+from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 
 from .forms import UploadFileForm, ResidentForm
-from .models import global_variables, resident, invoice, payment
+from .models import global_variables, resident, invoice, payment, sefton_action_item as sefton_action_item_model
 
 from backend.file_utils import file_num, latest_filename, latest_filenum
-from backend.get_sefton_data import get_remittance_advice
+from backend.get_sefton_data import get_latest_action_items, get_remittance_advice
 from backend.invoices import get_invoice_data_from_sefton_csv, write_invoices_and_update_db, generate_unique_customer_reference_number
 from backend.payments import match_payments_to_resident, normalize_payment_filters, update_payments
 
 from django.conf import settings
+
+SEFTON_TIMEZONE = ZoneInfo('Europe/London')
 
 # Create your views here.
 def home(request):
@@ -49,10 +54,12 @@ def home(request):
 
 def payments(request):
     if request.user.is_authenticated:
-        cutoff_date = global_variables.load().unmatched_payment_cutoff_date
+        variables = global_variables.load()
+        cutoff_date = variables.unmatched_payment_cutoff_date
         data = {
             'unmatched_payments': payment.objects.filter(Resident_id__isnull=True, date__gte=cutoff_date).order_by('date').reverse(),
             'residents': resident.objects.all(),
+            'last_downloaded_at': format_london_datetime(variables.last_bank_statement_downloaded_at),
         }
         if request.method=='POST':
             if request.POST.get('form_type') == 'Update payments':
@@ -95,6 +102,54 @@ def new_payments(request):
         })
     else:
         return redirect('/login')
+
+def sefton_action_items(request):
+    if request.user.is_authenticated:
+        if request.method == 'POST':
+            if request.POST.get('form_type') == 'Update action items':
+                get_latest_action_items()
+                return redirect('/sefton-action-items/')
+
+        variables = global_variables.load()
+        data = {
+            'action_items': sefton_action_item_model.objects.order_by('-last_post_at', 'title'),
+            'last_downloaded_at': format_london_datetime(variables.last_action_item_downloaded_at),
+        }
+        return render(request, "main/sefton_action_items.html", data)
+    else:
+        return redirect('/login')
+
+def sefton_action_item(request, action_id):
+    if request.user.is_authenticated:
+        action_item = sefton_action_item_model.objects.get(action_id=action_id)
+        data = {
+            'action_item': action_item,
+            'conversation_posts': format_action_item_conversation(action_item.conversation),
+        }
+        return render(request, "main/sefton_action_item.html", data)
+    else:
+        return redirect('/login')
+
+def format_action_item_conversation(conversation):
+    posts = []
+    for post in conversation:
+        sent_at = parse_datetime(post.get('sent_at', ''))
+
+        posts.append({
+            **post,
+            'sent_at': format_london_datetime(sent_at, empty_value=post.get('sent_at', '')),
+        })
+    return posts
+
+def format_london_datetime(value, empty_value='Never downloaded'):
+    if value is None:
+        return empty_value
+
+    if timezone.is_aware(value):
+        value = value.astimezone(SEFTON_TIMEZONE)
+    else:
+        value = timezone.make_aware(value, SEFTON_TIMEZONE)
+    return value.strftime('%d/%m/%Y %H:%M')
 
 def str_total(total):
     return u'\u00A3' + f'{total/100:,.2f}'
