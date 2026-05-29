@@ -175,8 +175,11 @@ def read_and_format_santander_statement(filename, check_table_formats=True):
     if check_table_formats and list(payments.columns) != expected_cols:
         unexpected_cols = [col for col in list(payments.columns) if col not in expected_cols]
         unexpected_values = payments[unexpected_cols].dropna().values
-        input(f'There are additional cols with the following values:\n\n{unexpected_values}\n\nIs it okay to discard these cols?')
-        payments = payments[expected_cols]
+        raise ValueError(
+            'Santander statement has additional columns that the importer does not recognise:\n\n'
+            f'{unexpected_values}\n\n'
+            'Update the importer or run with table-format checking disabled.'
+        )
 
     return payments, period
 

@@ -63,7 +63,11 @@ def payments(request):
         }
         if request.method=='POST':
             if request.POST.get('form_type') == 'Update payments':
-                new_payments = update_payments()
+                try:
+                    new_payments = update_payments()
+                except Exception as error:
+                    messages.error(request, f'Payment update failed: {error}')
+                    return redirect('/payments/')
                 request.session['new_payments'] = payments_to_session_records(new_payments)
                 return redirect('/payments/new/')
 

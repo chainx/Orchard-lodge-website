@@ -68,19 +68,20 @@ def scrape_santander_bank_statements(from_date, to_date, headless=False):
         options.add_argument("user-agent="+AGENT_STRING)  
 
     driver = webdriver.Chrome(options=options, service=Service(ChromeDriverManager().install()))
-    driver.get(SANTANDER_LOGIN_URl)
+    try:
+        driver.get(SANTANDER_LOGIN_URl)
 
-    log_in(driver)
-    navigate_to_download_page(driver)
+        log_in(driver)
+        navigate_to_download_page(driver)
 
-    date_partition = partition_dates(from_date, to_date)
-    for date_range in date_partition:
-        for i in range(2):
-            to_or_from = 'from' if i==0 else 'to'
-            input_date_form(driver, to_or_from, date_range[i])
-        download_bank_statement(driver, date_range[0], date_range[1])
-
-    driver.quit()
+        date_partition = partition_dates(from_date, to_date)
+        for date_range in date_partition:
+            for i in range(2):
+                to_or_from = 'from' if i==0 else 'to'
+                input_date_form(driver, to_or_from, date_range[i])
+            download_bank_statement(driver, date_range[0], date_range[1])
+    finally:
+        driver.quit()
 
 def download_bank_statement(driver, from_date, to_date, file_format='Microsoft Excel (XLS)', download=True):
     try:
@@ -206,12 +207,13 @@ def two_factor_authentication(driver):
         send_code_button = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.ID, 'sendcode'))
         )
-        ready_for_code = input('What is the authentication code?')
-        if ready_for_code:
-            send_code_button.click()
-            # TODO: get details for authentication field
+        raise RuntimeError(
+            'Santander is requesting two-factor authentication. '
+            'The website payment update cannot continue because it cannot ask for an authentication code.'
+        )
     except:
         print('Two factor authentication did not work')
+        raise
 
 def not_interested(driver):
     try:
