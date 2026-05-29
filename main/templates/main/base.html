@@ -43,6 +43,13 @@
 			<div class="col-8">
 				<h1 class="mt-2">Orchard lodge accounting</h1>
 				<hr class="mt-0 mb-4">
+				{% if messages %}
+					{% for message in messages %}
+						<div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %}" role="alert">
+							{{ message }}
+						</div>
+					{% endfor %}
+				{% endif %}
                 {% block content %}
                 {% endblock %}
 			</div>
