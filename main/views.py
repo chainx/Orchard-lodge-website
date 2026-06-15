@@ -188,13 +188,24 @@ def compile_resident_table(residents, include_date_left=False):
     
     return resident_table.to_dict(orient='records')
 
+def continue_resident_table_indices(*resident_tables):
+    index = 1
+    for resident_table in resident_tables:
+        for row in resident_table:
+            if row['res'] != 'Total':
+                row['index'] = index
+                index += 1
+
 def residents(request):
     if request.user.is_authenticated:
         cutoff_date = global_variables.load().recently_left_cutoff_date
         residents = resident.objects.exclude(first='Council').exclude(first='Cheques').order_by('last')
+        private_resident_info_table = compile_resident_table(residents.filter(current=True, private=True))
+        resident_info_table = compile_resident_table(residents.filter(current=True, private=False))
+        continue_resident_table_indices(private_resident_info_table, resident_info_table)
         data = {
-            'resident_info_table':  compile_resident_table(residents.filter(current=True, private=False)),
-            'private_resident_info_table': compile_resident_table(residents.filter(current=True, private=True)),
+            'resident_info_table':  resident_info_table,
+            'private_resident_info_table': private_resident_info_table,
             'recent_resident_info_table': compile_resident_table(residents.filter(leave_date__gt=cutoff_date), include_date_left=True),
             'former_residents' : residents.filter(current=False),
         }
