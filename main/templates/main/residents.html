@@ -5,94 +5,251 @@
 Residents page
 {% endblock %}
 
+{% block style %}
+    {{ block.super }}
+    <style>
+        .resident-extra-col {
+            display: none;
+        }
+
+        .resident-dashboard {
+            width: 55%;
+        }
+
+        .resident-dashboard.show-resident-details {
+            width: 100%;
+        }
+
+        .resident-top-layout {
+            display: flex;
+            align-items: flex-start;
+            gap: 2rem;
+        }
+
+        .resident-current-table-panel {
+            flex: 0 0 58%;
+        }
+
+        .resident-current-table-panel .resident-dashboard {
+            width: 100%;
+        }
+
+        .new-resident-panel {
+            flex: 1;
+            min-width: 260px;
+            max-width: 360px;
+        }
+
+        .new-resident-panel .container {
+            width: 100%;
+            padding-left: 0;
+            padding-right: 0;
+        }
+
+        .resident-form-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0.75rem 1rem;
+        }
+
+        .resident-form-field {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            min-width: 0;
+        }
+
+        .resident-form-field.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .resident-form-field input,
+        .resident-form-field select,
+        .resident-form-field textarea {
+            box-sizing: border-box;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .resident-form-field input[type="checkbox"] {
+            width: auto;
+        }
+
+        .resident-form-submit {
+            grid-column: 1 / -1;
+            justify-self: start;
+        }
+
+        .resident-top-layout.show-resident-details {
+            display: block;
+        }
+
+        .resident-top-layout.show-resident-details .new-resident-panel {
+            margin-top: 2rem;
+            max-width: none;
+        }
+
+        .compact-resident-form {
+            display: block;
+        }
+
+        .expanded-resident-form {
+            display: none;
+        }
+
+        .resident-top-layout.show-resident-details .compact-resident-form {
+            display: none;
+        }
+
+        .resident-top-layout.show-resident-details .expanded-resident-form {
+            display: block;
+        }
+
+        .expanded-resident-form .container {
+            width: 100%;
+            padding-left: 15px;
+            padding-right: 15px;
+        }
+
+        .show-resident-details .resident-extra-col {
+            display: table-cell;
+        }
+    </style>
+{% endblock %}
+
 {% block content %}
 
-<h3 style="margin-bottom: 20px">Current resident dashboard</h3>
+<div class="d-flex align-items-center" style="margin-bottom: 20px">
+    <h3 class="mb-0">Current resident dashboard</h3>
+    <button type="button" class="btn btn-outline-secondary btn-sm ml-3" id="toggleResidentDetails">Show details</button>
+</div>
 <p style="margin-bottom: 20px">In this dashboard and the dashboard below, any <b>invoices and payments from before April 2023 are ignored!</b></p>
-<table class="table table-bordered table-striped table-sm" id="resident-info">
-    <thead>
-        <tr>
-            <th></th>
-            <th>Resident</th>
-            <th>Invoices Issued</th>
-            <th>Invoice Total</th>
-            <th>Payments Received</th>
-            <th>Total Payed</th>
-            <th>Total Owed</th>
-            <th>Total Payed By Sefton</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr style="background-color: darkgrey"><td colspan="8" class="title"><b>Current residents with personal contributions</b></td></tr>
-        {% for row in resident_info_table %}
-            <tr id="{% if row.res != 'Total' %}{{row.res.name}}{% else %}total-row{% endif %}">
-                <td>{{row.index}}</td>
-                <td>{% if row.res != 'Total' %}<a href="/residents/{{row.res.url}}">{{row.res.name}}</a>{% else %}<b>Total</b>{% endif %}</td>                
-                <td>{% if row.res == 'Total' %}<b>{{row.invoice_no}}</b>{% else %}{{row.invoice_no}}{% endif %}</td>
-                <td>{% if row.res == 'Total' %}<b>{{row.invoice_total}}</b>{% else %}{{row.invoice_total}}{% endif %}</td>
-                <td>{% if row.res == 'Total' %}<b>{{row.payment_no}}</b>{% else %}{{row.payment_no}}{% endif %}</td>
-                <td>{% if row.res == 'Total' %}<b>{{row.payment_total}}</b>{% else %}{{row.payment_total}}{% endif %}</td>
-                <td>{% if row.res == 'Total' %}<b>{{row.owed}}</b>{% else %}{{row.owed}}{% endif %}</td>
-                <td>{% if row.res == 'Total' %}<b>{{row.sefton_payment_total}}</b>{% else %}{{row.sefton_payment_total}}{% endif %}</td>
-            </tr>
-        {% endfor %}
-        <tr style="background-color: darkgrey"><td colspan="8" class="title"><b>Current private residents</b></td></tr>
-        {% for row in private_resident_info_table %}
-            <tr id="{% if row.res != 'Total' %}{{row.res.name}}{% else %}total-row{% endif %}">
-                <td>{{row.index}}</td>
-                <td>{% if row.res != 'Total' %}<a href="/residents/{{row.res.url}}">{{row.res.name}}</a>{% else %}<b>Total</b>{% endif %}</td>                
-                <td>{% if row.res == 'Total' %}<b>{{row.invoice_no}}</b>{% else %}{{row.invoice_no}}{% endif %}</td>
-                <td>{% if row.res == 'Total' %}<b>{{row.invoice_total}}</b>{% else %}{{row.invoice_total}}{% endif %}</td>
-                <td>{% if row.res == 'Total' %}<b>{{row.payment_no}}</b>{% else %}{{row.payment_no}}{% endif %}</td>
-                <td>{% if row.res == 'Total' %}<b>{{row.payment_total}}</b>{% else %}{{row.payment_total}}{% endif %}</td>
-                <td>{% if row.res == 'Total' %}<b>{{row.owed}}</b>{% else %}{{row.owed}}{% endif %}</td>
-                <td>{% if row.res == 'Total' %}<b>{{row.sefton_payment_total}}</b>{% else %}{{row.sefton_payment_total}}{% endif %}</td>
-            </tr>
-        {% endfor %}
-    </tbody>
-</table>
+<div class="resident-top-layout" id="residentTopLayout">
+    <div class="resident-current-table-panel">
+        <table class="table table-bordered table-striped table-sm resident-dashboard" id="resident-info">
+            <thead>
+                <tr>
+                    <th></th>
+                    <th>Resident</th>
+                    <th class="resident-extra-col">Invoices Issued</th>
+                    <th class="resident-extra-col">Invoice Total</th>
+                    <th class="resident-extra-col">Payments Received</th>
+                    <th class="resident-extra-col">Total Payed</th>
+                    <th class="resident-extra-col">Total Payed By Sefton</th>
+                    <th>Total Owed</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr style="background-color: darkgrey"><td colspan="8" class="title"><b>Current private residents</b></td></tr>
+                {% for row in private_resident_info_table %}
+                    <tr id="{% if row.res != 'Total' %}{{row.res.name}}{% else %}total-row{% endif %}">
+                        <td>{{row.index}}</td>
+                        <td>{% if row.res != 'Total' %}<a href="/residents/{{row.res.url}}">{{row.res.name}}</a>{% else %}<b>Total</b>{% endif %}</td>                
+                        <td class="resident-extra-col">{% if row.res == 'Total' %}<b>{{row.invoice_no}}</b>{% else %}{{row.invoice_no}}{% endif %}</td>
+                        <td class="resident-extra-col">{% if row.res == 'Total' %}<b>{{row.invoice_total}}</b>{% else %}{{row.invoice_total}}{% endif %}</td>
+                        <td class="resident-extra-col">{% if row.res == 'Total' %}<b>{{row.payment_no}}</b>{% else %}{{row.payment_no}}{% endif %}</td>
+                        <td class="resident-extra-col">{% if row.res == 'Total' %}<b>{{row.payment_total}}</b>{% else %}{{row.payment_total}}{% endif %}</td>
+                        <td class="resident-extra-col">{% if row.res == 'Total' %}<b>{{row.sefton_payment_total}}</b>{% else %}{{row.sefton_payment_total}}{% endif %}</td>
+                        <td>{% if row.res == 'Total' %}<b>{{row.owed}}</b>{% else %}{{row.owed}}{% endif %}</td>
+                    </tr>
+                {% endfor %}
+                <tr style="background-color: darkgrey"><td colspan="8" class="title"><b>Current residents with personal contributions</b></td></tr>
+                {% for row in resident_info_table %}
+                    <tr id="{% if row.res != 'Total' %}{{row.res.name}}{% else %}total-row{% endif %}">
+                        <td>{{row.index}}</td>
+                        <td>{% if row.res != 'Total' %}<a href="/residents/{{row.res.url}}">{{row.res.name}}</a>{% else %}<b>Total</b>{% endif %}</td>                
+                        <td class="resident-extra-col">{% if row.res == 'Total' %}<b>{{row.invoice_no}}</b>{% else %}{{row.invoice_no}}{% endif %}</td>
+                        <td class="resident-extra-col">{% if row.res == 'Total' %}<b>{{row.invoice_total}}</b>{% else %}{{row.invoice_total}}{% endif %}</td>
+                        <td class="resident-extra-col">{% if row.res == 'Total' %}<b>{{row.payment_no}}</b>{% else %}{{row.payment_no}}{% endif %}</td>
+                        <td class="resident-extra-col">{% if row.res == 'Total' %}<b>{{row.payment_total}}</b>{% else %}{{row.payment_total}}{% endif %}</td>
+                        <td class="resident-extra-col">{% if row.res == 'Total' %}<b>{{row.sefton_payment_total}}</b>{% else %}{{row.sefton_payment_total}}{% endif %}</td>
+                        <td>{% if row.res == 'Total' %}<b>{{row.owed}}</b>{% else %}{{row.owed}}{% endif %}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 
-<h3 style="margin-bottom: 20px">New resident form</h3>
-<p>Fill in the form below to add a new resident.</p>
-<form method="post" class="form-group">
-    {% csrf_token %}
-    <input type="hidden" name="form_type" value="Updating resident info">
-    <div class="container">
-        <div class="row", style="margin-bottom: 5px">
-            <div class="col-sm-1.5"><b>{{resident_form.title.label_tag}}</b>  {{resident_form.title}}</div>
-            <div class="col-sm-3"><b>{{resident_form.first.label_tag}}</b>  {{resident_form.first}}</div>
-            <div class="col-sm-2.5"><b>{{resident_form.last.label_tag}}</b>  {{resident_form.last}}</div>
-        </div>
-        <div class="row", style="margin-bottom: 5px">
-            <div class="col-sm-4"><b>{{resident_form.start_date.label_tag}}</b>  {{resident_form.start_date}}</div>
-        </div>
-        <div class="row", style="margin-bottom: 5px">
-            <div class="col-sm"><b>{{resident_form.filters.label_tag}}</b>  {{resident_form.filters}}</div>
-        </div>
-        <div class="row", style="margin-bottom: 5px">
-            <div class="col-sm-1.5"><b>{{resident_form.private.label_tag}}</b>  {{resident_form.private}}</div>
-            <div class="col-sm-3"><b>{{resident_form.private_rate.label_tag}}</b>  {{resident_form.private_rate}}</div>
-        </div>
-        <div class="row">
-            <button type="submit" class="col-sm-4 btn btn-primary">Add new resident</button>
-        </div>
-    </div> 
-</form>
+    <div class="new-resident-panel">
+        <h3 style="margin-bottom: 20px">New resident form</h3>
+        <p>Fill in the form below to add a new resident.</p>
+        <form method="post" class="form-group compact-resident-form">
+            {% csrf_token %}
+            <input type="hidden" name="form_type" value="Updating resident info">
+            <div class="resident-form-grid">
+                <div class="resident-form-field">
+                    <b>{{resident_form.title.label_tag}}</b>
+                    {{resident_form.title}}
+                </div>
+                <div class="resident-form-field">
+                    <b>{{resident_form.first.label_tag}}</b>
+                    {{resident_form.first}}
+                </div>
+                <div class="resident-form-field">
+                    <b>{{resident_form.last.label_tag}}</b>
+                    {{resident_form.last}}
+                </div>
+                <div class="resident-form-field">
+                    <b>{{resident_form.start_date.label_tag}}</b>
+                    {{resident_form.start_date}}
+                </div>
+                <div class="resident-form-field">
+                    <b>{{resident_form.private_rate.label_tag}}</b>
+                    {{resident_form.private_rate}}
+                </div>
+                <div class="resident-form-field">
+                    <b>{{resident_form.private.label_tag}}</b>
+                    {{resident_form.private}}
+                </div>
+                <div class="resident-form-field full-width">
+                    <b>{{resident_form.filters.label_tag}}</b>
+                    {{resident_form.filters}}
+                </div>
+                <button type="submit" class="btn btn-primary resident-form-submit">Add new resident</button>
+            </div>
+        </form>
+
+        <form method="post" class="form-group expanded-resident-form">
+            {% csrf_token %}
+            <input type="hidden" name="form_type" value="Updating resident info">
+            <div class="container">
+                <div class="row", style="margin-bottom: 5px">
+                    <div class="col-sm-1.5"><b>{{resident_form.title.label_tag}}</b>  {{resident_form.title}}</div>
+                    <div class="col-sm-3"><b>{{resident_form.first.label_tag}}</b>  {{resident_form.first}}</div>
+                    <div class="col-sm-2.5"><b>{{resident_form.last.label_tag}}</b>  {{resident_form.last}}</div>
+                </div>
+                <div class="row", style="margin-bottom: 5px">
+                    <div class="col-sm-4"><b>{{resident_form.start_date.label_tag}}</b>  {{resident_form.start_date}}</div>
+                </div>
+                <div class="row", style="margin-bottom: 5px">
+                    <div class="col-sm"><b>{{resident_form.filters.label_tag}}</b>  {{resident_form.filters}}</div>
+                </div>
+                <div class="row", style="margin-bottom: 5px">
+                    <div class="col-sm-2"><b>{{resident_form.private.label_tag}}</b>  {{resident_form.private}}</div>
+                    <div class="col-sm-3"><b>{{resident_form.private_rate.label_tag}}</b>  {{resident_form.private_rate}}</div>
+                </div>
+                <div class="row">
+                    <button type="submit" class="col-sm-4 btn btn-primary">Add new resident</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
 
 <h3 style="margin-bottom: 20px">Dashboard for recently left residents</h3>
 <p style="margin-bottom: 20px">In this dashboard a resident is considered to have "recently left" if they left any time during 2023 or after.</p>
-<table class="table table-bordered table-striped table-sm" id="resident-info">
+<table class="table table-bordered table-striped table-sm resident-dashboard" id="resident-info">
     <thead>
         <tr>
             <th></th>
             <th>Resident</th>
-            <th>Invoices Issued</th>
-            <th>Invoice Total</th>
-            <th>Payments Received</th>
-            <th>Total Payed</th>
+            <th class="resident-extra-col">Invoices Issued</th>
+            <th class="resident-extra-col">Invoice Total</th>
+            <th class="resident-extra-col">Payments Received</th>
+            <th class="resident-extra-col">Total Payed</th>
+            <th class="resident-extra-col">Total Payed By Sefton</th>
+            <th class="resident-extra-col">Date Left</th>
             <th>Total Owed</th>
-            <th>Total Payed By Sefton</th>
-            <th>Date Left</th>
         </tr>
     </thead>
     <tbody>
@@ -101,16 +258,30 @@ Residents page
             <tr id="{% if row.res != 'Total' %}{{row.res.name}}{% else %}total-row{% endif %}">
                 <td>{{row.index}}</td>
                 <td>{% if row.res != 'Total' %}<a href="/residents/{{row.res.url}}">{{row.res.name}}</a>{% else %}<b>Total</b>{% endif %}</td>                
-                <td>{% if row.res == 'Total' %}<b>{{row.invoice_no}}</b>{% else %}{{row.invoice_no}}{% endif %}</td>
-                <td>{% if row.res == 'Total' %}<b>{{row.invoice_total}}</b>{% else %}{{row.invoice_total}}{% endif %}</td>
-                <td>{% if row.res == 'Total' %}<b>{{row.payment_no}}</b>{% else %}{{row.payment_no}}{% endif %}</td>
-                <td>{% if row.res == 'Total' %}<b>{{row.payment_total}}</b>{% else %}{{row.payment_total}}{% endif %}</td>
+                <td class="resident-extra-col">{% if row.res == 'Total' %}<b>{{row.invoice_no}}</b>{% else %}{{row.invoice_no}}{% endif %}</td>
+                <td class="resident-extra-col">{% if row.res == 'Total' %}<b>{{row.invoice_total}}</b>{% else %}{{row.invoice_total}}{% endif %}</td>
+                <td class="resident-extra-col">{% if row.res == 'Total' %}<b>{{row.payment_no}}</b>{% else %}{{row.payment_no}}{% endif %}</td>
+                <td class="resident-extra-col">{% if row.res == 'Total' %}<b>{{row.payment_total}}</b>{% else %}{{row.payment_total}}{% endif %}</td>
+                <td class="resident-extra-col">{% if row.res == 'Total' %}<b>{{row.sefton_payment_total}}</b>{% else %}{{row.sefton_payment_total}}{% endif %}</td>
+                <td class="resident-extra-col">{% if row.res != 'Total' %}{{row.leave_date}}{% endif %}</td>
                 <td>{% if row.res == 'Total' %}<b>{{row.owed}}</b>{% else %}{{row.owed}}{% endif %}</td>
-                <td>{% if row.res == 'Total' %}<b>{{row.sefton_payment_total}}</b>{% else %}{{row.sefton_payment_total}}{% endif %}</td>
-                <td>{% if row.res != 'Total' %}{{row.leave_date}}{% endif %}</td>
             </tr>
         {% endfor %}
     </tbody>
 </table>
 
+{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+<script>
+    $(document).ready(function() {
+        $('#toggleResidentDetails').click(function() {
+            $('.resident-dashboard').toggleClass('show-resident-details');
+            $('#residentTopLayout').toggleClass('show-resident-details');
+            var showingDetails = $('.resident-dashboard').first().hasClass('show-resident-details');
+            $(this).text(showingDetails ? 'Hide details' : 'Show details');
+        });
+    });
+</script>
 {% endblock %}
