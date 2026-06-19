@@ -86,6 +86,8 @@ def match_payments_wtih_existing_payment_filters(verbose=True):
         match_payments_to_resident(res.id, res_filters, res.name, verbose)
 
 def normalize_payment_filters(filters):
+    if filters is None:
+        return []
     if isinstance(filters, str):
         filters = filters.split(';')
     return [filter.strip() for filter in filters if filter.strip()]

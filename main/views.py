@@ -11,6 +11,7 @@ from django.shortcuts import render, redirect
 from django.http import HttpResponse, HttpResponseRedirect
 from django.contrib import messages
 from django.core.files.storage import FileSystemStorage
+from django.db import transaction
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
@@ -77,11 +78,15 @@ def payments(request):
             resident_id = request.POST['resident_id']
             if filter_input and resident_id:
                 res = resident.objects.get(id=resident_id)
-                filters = normalize_payment_filters(res.filters) + normalize_payment_filters(filter_input)
-                filters = list(dict.fromkeys(filters))
-                res.filters = ';'.join(filters)
-                res.save()
-                match_payments_to_resident(res.id, filter_input, res.name)
+                try:
+                    with transaction.atomic():
+                        filters = normalize_payment_filters(res.filters) + normalize_payment_filters(filter_input)
+                        filters = list(dict.fromkeys(filters))
+                        res.filters = ';'.join(filters)
+                        res.save()
+                        match_payments_to_resident(res.id, filter_input, res.name)
+                except Exception as error:
+                    messages.error(request, f'Payment filter failed: {error}')
                 return redirect('/payments')
         return render(request, "main/payments.html", data)
     else:
