@@ -8,40 +8,165 @@
 {% block style %}
 {{ block.super }}
 <link rel="stylesheet" href="{% static 'css/specific_resident.css' %}">
+<style>
+    .resident-info-actions {
+        display: flex;
+        align-items: flex-start;
+        gap: 2rem;
+    }
+
+    .resident-info-form {
+        flex: 0 0 700px;
+    }
+
+    .resident-info-form .row {
+        align-items: center;
+        flex-wrap: nowrap;
+    }
+
+    .resident-info-form .row > div {
+        white-space: nowrap;
+    }
+
+    .resident-info-form input,
+    .resident-info-form select {
+        box-sizing: border-box;
+    }
+
+    .resident-info-form #id_title {
+        width: 70px;
+    }
+
+    .resident-info-form #id_first,
+    .resident-info-form #id_last {
+        width: 160px;
+    }
+
+    .resident-info-form #id_start_date,
+    .resident-info-form #id_leave_date {
+        width: 165px;
+    }
+
+    .resident-info-form #id_filters {
+        width: 615px;
+    }
+
+    .resident-info-form #id_private_rate {
+        width: 100px;
+    }
+
+    .resident-edit-grid {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .resident-edit-row {
+        align-items: center;
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 1rem;
+    }
+
+    .resident-edit-field {
+        align-items: center;
+        display: flex;
+        gap: 0.25rem;
+        white-space: nowrap;
+    }
+
+    .resident-edit-field input,
+    .resident-edit-field select {
+        box-sizing: border-box;
+    }
+
+    .resident-edit-field.title-field select {
+        width: 70px;
+    }
+
+    .resident-edit-field.name-field input {
+        width: 170px;
+    }
+
+    .resident-edit-field.date-field input {
+        width: 170px;
+    }
+
+    .resident-edit-field.filters-field input {
+        width: 615px;
+    }
+
+    .resident-edit-field.rate-field input {
+        width: 100px;
+    }
+
+    .resident-edit-submit {
+        width: 244px;
+    }
+
+    .statement-download-form {
+        margin-top: 0.25rem;
+    }
+
+    .statement-download-action {
+        display: block;
+        white-space: nowrap;
+    }
+
+    .statement-cover-letter-option {
+        align-items: center;
+        display: flex;
+        gap: 0.4rem;
+        margin-bottom: 0.5rem;
+        white-space: nowrap;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
 <h3 class="header">Information about {{res.name}} (customer reference number: {{res.customer_ref_no}})</h3>
 <p>Resident information can be edited here. Please double check any edits before clicking the submit button.</p>
 
-<form method="post" class="form-group">
-    {% csrf_token %}
-    <input type="hidden" name="form_type" value="Updating resident info">
-    <div class="container">
-        <div class="row", style="margin-bottom: 5px">
-            <div class="col-sm-1.5"><b>{{resident_form.title.label_tag}}</b>  {{resident_form.title}}</div>
-            <div class="col-sm-3"><b>{{resident_form.first.label_tag}}</b>  {{resident_form.first}}</div>
-            <div class="col-sm-2.5"><b>{{resident_form.last.label_tag}}</b>  {{resident_form.last}}</div>
-        </div>
-        <div class="row", style="margin-bottom: 5px">
-            <div class="col-sm-4"><b>{{resident_form.start_date.label_tag}}</b>  {{resident_form.start_date}}</div>
-            <div class="col-sm-4"><b>{{resident_form.leave_date.label_tag}}</b>  {{resident_form.leave_date}}</div>
-        </div>
-        <div class="row", style="margin-bottom: 5px">
-            <div class="col-sm"><b>{{resident_form.filters.label_tag}}</b>  {{resident_form.filters}}</div>
-        </div>
-        <div class="row", style="margin-bottom: 5px">
-            <div class="col-sm-2"><b>{{resident_form.current.label_tag}}</b>  {{resident_form.current}}</div>
-            <div class="col-sm-2"><b>{{resident_form.private.label_tag}}</b>  {{resident_form.private}}</div>
-            {% if res.private %}
-                <div class="col-sm-3"><b>{{resident_form.private_rate.label_tag}}</b>  {{resident_form.private_rate}}</div>
-            {% endif %}
-        </div>
-        <div class="row">
-            <button type="submit" class="col-sm-4 btn btn-primary">Update resident information</button>
-        </div>
-    </div>    
-</form>
+<div class="resident-info-actions">
+    <form method="post" class="form-group resident-info-form">
+        {% csrf_token %}
+        <input type="hidden" name="form_type" value="Updating resident info">
+        <div class="resident-edit-grid">
+            <div class="resident-edit-row">
+                <div class="resident-edit-field title-field"><b>{{resident_form.title.label_tag}}</b> {{resident_form.title}}</div>
+                <div class="resident-edit-field name-field"><b>{{resident_form.first.label_tag}}</b> {{resident_form.first}}</div>
+                <div class="resident-edit-field name-field"><b>{{resident_form.last.label_tag}}</b> {{resident_form.last}}</div>
+            </div>
+            <div class="resident-edit-row">
+                <div class="resident-edit-field date-field"><b>{{resident_form.start_date.label_tag}}</b> {{resident_form.start_date}}</div>
+                <div class="resident-edit-field date-field"><b>{{resident_form.leave_date.label_tag}}</b> {{resident_form.leave_date}}</div>
+            </div>
+            <div class="resident-edit-row">
+                <div class="resident-edit-field filters-field"><b>{{resident_form.filters.label_tag}}</b> {{resident_form.filters}}</div>
+            </div>
+            <div class="resident-edit-row">
+                <div class="resident-edit-field"><b>{{resident_form.current.label_tag}}</b> {{resident_form.current}}</div>
+                <div class="resident-edit-field"><b>{{resident_form.private.label_tag}}</b> {{resident_form.private}}</div>
+                {% if res.private %}
+                    <div class="resident-edit-field rate-field"><b>{{resident_form.private_rate.label_tag}}</b> {{resident_form.private_rate}}</div>
+                {% endif %}
+            </div>
+            <div class="resident-edit-row">
+                <button type="submit" class="btn btn-primary resident-edit-submit">Update resident information</button>
+            </div>
+        </div>    
+    </form>
+
+    <form method="get" action="{% url 'download_statement_of_account' res.url %}" class="statement-download-form">
+        <label class="statement-cover-letter-option">
+            <input type="checkbox" name="include_cover_letter" checked>
+            Cover letter
+        </label>
+        <button type="submit" class="btn btn-primary btn-lg statement-download-action">
+            Generate statement of account
+        </button>
+    </form>
+</div>
 
 <form method="post" id="tentative-matches-form" class="form-group" onsubmit="fill_match_form(event)">
     {% csrf_token %}

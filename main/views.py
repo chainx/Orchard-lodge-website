@@ -2,6 +2,7 @@ import os
 import pandas as pd
 from datetime import datetime, date
 import mimetypes
+import tempfile
 from zipfile import ZipFile
 from zoneinfo import ZoneInfo
 
@@ -20,6 +21,7 @@ from backend.file_utils import file_num, latest_filename, latest_filenum
 from backend.get_sefton_data import get_latest_action_items, get_remittance_advice
 from backend.invoices import get_invoice_data_from_sefton_csv, write_invoices_and_update_db, generate_unique_customer_reference_number
 from backend.payments import match_payments_to_resident, normalize_payment_filters, update_payments
+from backend.statement_of_account import can_convert_to_pdf, merge_pdfs, write_cover_letter, write_statement_of_account
 
 from django.conf import settings
 
@@ -264,7 +266,50 @@ def specific_resident(request, res_url):
         return render(request, "main/specific_resident.html", data)
     else:
         return redirect('/login')
-    
+
+def download_statement_of_account(request, res_url):
+    if request.user.is_authenticated:
+        title, first, last = res_url.split('-')
+        res = resident.objects.get(title=title, first=first.replace('_', ' '), last=last.replace('_', ' '))
+        include_cover_letter = request.GET.get('include_cover_letter') == 'on'
+
+        with tempfile.TemporaryDirectory() as folder:
+            filename = create_downloadable_statement(folder, res, include_cover_letter)
+            with open(filename, 'rb') as download_file:
+                content_type = mimetypes.guess_type(filename)[0] or 'application/octet-stream'
+                response = HttpResponse(download_file.read(), content_type=content_type)
+
+        download_filename = os.path.basename(filename)
+        response['Content-Disposition'] = f'attachment; filename="{download_filename}"'
+        return response
+    else:
+        return redirect('/login')
+
+def create_downloadable_statement(folder, res, include_cover_letter):
+    try:
+        return create_downloadable_statement_files(folder, res, include_cover_letter, convert_to_pdf=can_convert_to_pdf())
+    except RuntimeError:
+        return create_downloadable_statement_files(folder, res, include_cover_letter, convert_to_pdf=False)
+
+def create_downloadable_statement_files(folder, res, include_cover_letter, convert_to_pdf):
+    statement = write_statement_of_account(folder, 1, res, convert_to_pdf=convert_to_pdf)
+    if not include_cover_letter:
+        return statement
+
+    cover_letter = write_cover_letter(folder, 1, res, convert_to_pdf=convert_to_pdf)
+    if cover_letter is None:
+        return statement
+
+    if convert_to_pdf:
+        merge_pdfs(cover_letter, statement)
+        return statement
+
+    zip_filename = os.path.join(folder, f'{res.name} - Statement of Account.zip')
+    with ZipFile(zip_filename, 'w') as zip_file:
+        zip_file.write(cover_letter, os.path.basename(cover_letter))
+        zip_file.write(statement, os.path.basename(statement))
+    return zip_filename
+     
 def cash_and_cheques(request):
     data = {}
     return render(request, "main/cash_and_cheques.html", data)
