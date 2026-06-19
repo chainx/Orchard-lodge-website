@@ -31,6 +31,7 @@ urlpatterns = [
 
     path('residents/', views.residents, name="residents"),
     path('residents/<res_url>/',views.specific_resident, name="specific_resident"),
+    path('residents/<res_url>/statement-of-account/', views.download_statement_of_account, name="download_statement_of_account"),
     path('payments/', views.payments, name="payments"),
     path('payments/new/', views.new_payments, name="new_payments"),
     path('sefton-action-items/', views.sefton_action_items, name="sefton_action_items"),
