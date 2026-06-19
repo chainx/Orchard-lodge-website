@@ -168,18 +168,10 @@
     </form>
 </div>
 
-<form method="post" id="tentative-matches-form" class="form-group" onsubmit="fill_match_form(event)">
-    {% csrf_token %}
-    <input type="hidden" name="form_type" value="Payment matching">
-    <div id="tentative-matches" class="row">
-        <!-- Tenative matches get appended here with Javascript -->
-    </div> 
-</form>
-
-<h3 class="header">Unmatched invoices and payments for {{res.name}}</h3>
+<h3 class="header">Invoices and payments for {{res.name}}</h3>
 <div class="row">
     <div class="column invoice">
-        <table class="table table-bordered table-striped table-sm" id="invoices-to-match">
+        <table class="table table-bordered table-striped table-sm">
             <thead>
                 <tr>
                     <th>Invoice #</th>
@@ -189,8 +181,8 @@
                 </tr>
             </thead>
             <tbody>
-                {% for invoice in unmatched_invoices %}
-                    <tr id="Invoice-{{invoice.id}}" draggable="true" ondragstart="event.dataTransfer.setData('text/plain', event.target.id)">
+                {% for invoice in invoices %}
+                    <tr>
                         <td>{{invoice.invoice_number}}</td>
                         <td>{{invoice.batch_number}}</td>
                         <td>{{invoice.date}}</td>
@@ -201,67 +193,28 @@
         </table>
     </div>
     <div class="column payment">
-        <table class="table table-striped table-bordered table-sm" id="payments-to-match">
+        <table class="table table-striped table-bordered table-sm">
             <thead>
                 <tr>
                     <th>ID</th>
                     <th>Date</th>
                     <th>Description</th>
-                    <th>Amount Payed</th>
-                    <!-- <th>Type</th> -->
+                    <th>Amount Paid</th>
                 </tr>
             </thead>
             <tbody>
-                {% for payment in unmatched_payments %}
-                    <tr id="Payment-{{payment.id}}" ondragover="event.preventDefault()" ondrop="handle_matching(event)">
+                {% for payment in payments %}
+                    <tr>
                         <td>{{payment.id}}</td>
                         <td>{{payment.date}}</td>
                         <td class="payment-description">{{payment.cleaned_description}}</td>
                         <td>{{payment.str_amount}}</td>
-                        <!-- <td>{{payment.type}}</td> -->
                     </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
 </div>
-
-{% if accepted_matches %}
-    <h3 class="header">Matched invoices and payments for {{res.name}}</h3>
-    <div id="accepted-matches" class="row">
-        {% for index, payment, invoices, _ in accepted_matches %}
-            <div class="match-container" id="accepted-match-{{index}}">
-                <div class="column invoice">
-                    <table class="table table-bordered table-striped table-sm">
-                        <tbody">
-                            {% for invoice in invoices %}
-                                <tr id="Invoice-{{invoice.id}}" draggable="true" ondragstart="event.dataTransfer.setData('text/plain', event.target.id)">
-                                    <td>{{invoice.invoice_number}}</td>
-                                    <td>{{invoice.batch_number}}</td>
-                                    <td>{{invoice.date}}</td>
-                                    <td>{{invoice.str_total}}</td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                <div class="column payment">
-                    <table class="table table-bordered table-striped table-sm">
-                        <tbody>
-                            <tr id="Payment-{{payment.id}}" ondragover="event.preventDefault()" ondrop="handle_matching(event)">
-                                <td>{{payment.id}}</td>
-                                <td>{{payment.date}}</td>
-                                <td class="payment-description">{{payment.cleaned_description}}</td>
-                                <td>{{payment.str_amount}}</td>
-                                <!-- <td>{{payment.type}}</td> -->
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        {% endfor %}
-    </div>
-{% endif %}
 
 <h3 class="header">Sefton payments for {{res.name}}</h3>
     <div class="column invoice">
@@ -285,8 +238,6 @@
         </table>
     </div>
 </div>
-<!-- {% if accepted_matches %} -->
-<!-- {% endif %} -->
 
 {% endblock %}
 
@@ -295,12 +246,6 @@
 {{ block.super }}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const accepted_matches = document.getElementById('accepted-matches');
-        const header = createMatchHeader();
-        if (accepted_matches) {
-            accepted_matches.insertBefore(header, accepted_matches.firstChild);
-        }
-
         var descriptionElements = document.getElementsByClassName('payment-description');
         for (var i = 0; i < descriptionElements.length; i++) {
             var element = descriptionElements[i];
@@ -311,136 +256,5 @@
             }
         }
     });
-
-
-    function handle_matching(event) {
-        event.preventDefault();
-        
-        const tentative_matches_form = document.getElementById('tentative-matches-form');
-        const tentative_matches = document.getElementById('tentative-matches');
-        var matches = tentative_matches.children.length - 1; // Subtract 1 because of the header
-        
-        if (matches === -1) {
-            initialise_tentative_matches(tentative_matches_form, tentative_matches);
-            matches = 1;
-        }
-
-        const invoice_id = event.dataTransfer.getData('text/plain');
-        const invoice_element = document.getElementById(invoice_id).closest('tr')
-        const payment_element = event.target.closest('tr')
-
-        if (payment_element.closest('div').id.includes('matched-payment')){
-            match = payment_element.closest('div').id.split('-')[2];
-            const invoice_tbody = document.getElementById(`matched-invoice-tbody-${match}`);
-            invoice_tbody.appendChild(invoice_element);
-        } else {
-            create_new_match(tentative_matches, matches, invoice_element, payment_element);
-        }
-    }
-
-    function fill_match_form(event){
-        event.preventDefault();
-
-        const tentative_matches_form = document.getElementById('tentative-matches-form');
-        const tentative_matches = document.getElementById('tentative-matches');
-
-        for (match of tentative_matches.children) {
-            if (match.id.includes('tentative-match')){
-                const form_input = document.createElement('input');
-                form_input.type = 'hidden';                
-                for (row of match.getElementsByTagName('tr')){
-                    if (row.id.includes('Payment')){
-                        form_input.name = 'Payment ID - ' + row.id.split('-')[1];
-                    } else {
-                        form_input.value += row.id.split('-')[1] + '-';
-                    }
-                }
-                form_input.value = form_input.value.slice(0, -1); // Remove additional "-" added to the end of the value
-                tentative_matches_form.appendChild(form_input);
-            }
-        }
-        tentative_matches_form.submit();
-    }
-
-    function create_new_match(tentative_matches, matches, invoice_element, payment_element){
-        const matchContainer = document.createElement('div');
-        matchContainer.className = 'match-container';
-        matchContainer.id = `tentative-match-${matches}`
-
-        invoice_table_div = create_match_subtable(invoice_element, 'invoice', matches);
-        payment_table_div = create_match_subtable(payment_element, 'payment', matches);
-
-        matchContainer.appendChild(invoice_table_div);
-        matchContainer.appendChild(payment_table_div);
-
-        tentative_matches.appendChild(matchContainer);
-    }
-
-    function create_match_subtable(row_element, invoice_or_payment, matches){
-        const div_element = document.createElement('div');
-        div_element.className = `column ${invoice_or_payment}`;
-        div_element.id = `matched-${invoice_or_payment}-${matches}`;
-        
-        const table_element = document.createElement('table');
-        table_element.className = 'table table-bordered table-striped table-sm';
-        
-        const tbody_element = document.createElement('tbody');
-        tbody_element.id = `matched-invoice-tbody-${matches}`;
-
-        
-        tbody_element.appendChild(row_element);
-        table_element.appendChild(tbody_element);
-        div_element.appendChild(table_element);
-
-        return div_element;
-    }
-
-    function initialise_tentative_matches(tentative_matches_form, tentative_matches){
-        const matchHeader = createMatchHeader();
-
-        const title = document.createElement('h3');
-        title.textContent = 'Tentative matches';
-        title.className = 'header';
-
-        const button = document.createElement('button')
-        button.className = 'btn btn-primary';
-        button.textContent = 'Submit';
-        
-        tentative_matches_form.appendChild(button);
-        tentative_matches.appendChild(title);
-        tentative_matches.appendChild(matchHeader);
-    }
-
-    function createMatchHeader() {
-        const header = document.createElement('div');
-        header.className = 'match-header';
-        header.appendChild(copy_table_header('invoice'));
-        header.appendChild(copy_table_header('payment'));
-        return header;
-    }
-
-    function copy_table_header(invoice_or_payment) {
-        const col_element = document.createElement('div');
-        col_element.className = `column ${invoice_or_payment}`;
-
-        const table = document.getElementById(`${invoice_or_payment}s-to-match`);
-        
-        var widths = [];
-        var table_headers = table.getElementsByTagName('th');
-        Array.from(table_headers).forEach((th) => {
-            widths.push(th.offsetWidth + 1);
-        });
-
-        const new_table = table.cloneNode(true)
-        new_table.querySelector('tbody').remove();
-
-        table_headers = new_table.getElementsByTagName('th');
-        Array.from(table_headers).forEach((th, index) => {
-            th.style.width = `${widths[index]}px`;
-        });
-        
-        col_element.appendChild(new_table);
-        return col_element;
-    }
 </script>
 {% endblock %}

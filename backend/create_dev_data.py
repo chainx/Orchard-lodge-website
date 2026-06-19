@@ -183,17 +183,17 @@ def create_residents():
 def create_invoices(produce_files):
     invoice_folder = settings.MEDIA_INVOICES / '2026' / '4. 27 May 2026'
     rows = [
-        (301, 201, '02001', '01/05/2026', '28/05/2026', 45000, False, False),
-        (302, 202, '02002', '01/05/2026', '28/05/2026', 37500, False, False),
-        (303, 203, '02003', '01/05/2026', '31/05/2026', 120000, False, False),
-        (304, 205, '02004', '01/05/2026', '14/05/2026', 21550, False, True),
-        (305, 206, '02005', '15/05/2026', '31/05/2026', 95000, False, False),
-        (306, 204, '01988', '01/03/2025', '14/03/2025', 18000, True, False),
+        (301, 201, '02001', '01/05/2026', '28/05/2026', 45000, False),
+        (302, 202, '02002', '01/05/2026', '28/05/2026', 37500, False),
+        (303, 203, '02003', '01/05/2026', '31/05/2026', 120000, False),
+        (304, 205, '02004', '01/05/2026', '14/05/2026', 21550, False),
+        (305, 206, '02005', '15/05/2026', '31/05/2026', 95000, False),
+        (306, 204, '01988', '01/03/2025', '14/03/2025', 18000, True),
     ]
 
     if produce_files:
         invoice_folder.mkdir(parents=True, exist_ok=True)
-    for id_, resident_id, number, start, end, total, obsolete, matched in rows:
+    for id_, resident_id, number, start, end, total, obsolete in rows:
         Resident = resident.objects.get(id=resident_id)
         sub_items = pd.DataFrame({
             'Amount': [total / 100],
@@ -221,7 +221,6 @@ def create_invoices(produce_files):
             year=2026,
             total=total,
             obsolete=obsolete,
-            matched=matched,
         )
 
     older_folder = settings.MEDIA_INVOICES / '2025' / '9. 31 December 2025'
@@ -254,28 +253,26 @@ def create_invoices(produce_files):
         year=2025,
         total=30000,
         obsolete=False,
-        matched=True,
     )
 
 
 def create_payments():
     rows = [
-        (401, 201, '2026-05-29', 'FASTER PAYMENTS RECEIPT ARTHUR TEST', 45000, True, 'Santander'),
-        (402, 203, '2026-05-10', 'CARLA PRIVATE MAY CARE', 60000, False, 'RBS'),
-        (403, 203, '2026-05-24', 'CARLA PRIVATE BALANCE', 60000, False, 'RBS'),
-        (404, 205, '2026-05-12', 'CASH PAYMENT EVA CASH', 10000, False, 'Cash'),
-        (405, None, '2026-05-21', 'UNMATCHED TEST PAYMENT', 12345, False, 'Santander'),
-        (406, 204, '2025-03-20', 'DEREK FORMER FINAL PAYMENT', 18000, True, 'Cheque'),
+        (401, 201, '2026-05-29', 'FASTER PAYMENTS RECEIPT ARTHUR TEST', 45000, 'Santander'),
+        (402, 203, '2026-05-10', 'CARLA PRIVATE MAY CARE', 60000, 'RBS'),
+        (403, 203, '2026-05-24', 'CARLA PRIVATE BALANCE', 60000, 'RBS'),
+        (404, 205, '2026-05-12', 'CASH PAYMENT EVA CASH', 10000, 'Cash'),
+        (405, None, '2026-05-21', 'UNMATCHED TEST PAYMENT', 12345, 'Santander'),
+        (406, 204, '2025-03-20', 'DEREK FORMER FINAL PAYMENT', 18000, 'Cheque'),
     ]
 
-    for id_, resident_id, date, description, amount, matched, payment_type in rows:
+    for id_, resident_id, date, description, amount, payment_type in rows:
         payment.objects.create(
             id=id_,
             Resident_id=resident_id,
             date=date,
             description=description,
             amount=amount,
-            matched=matched,
             type=payment_type,
         )
 

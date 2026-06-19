@@ -52,7 +52,6 @@ def extract_payment_kwargs_for_db(payment, bank):
         'date': payment.date,
         'description': payment.description,
         'amount': payment.amount,
-        'matched': False,
         'type' : bank,
     }
     return kwargs

@@ -53,7 +53,6 @@ class payment(models.Model):
     date = models.DateField(blank=True, null=True)
     description = models.CharField(max_length=256, blank=True, null=True)
     amount = models.IntegerField(blank=True, null=True)
-    matched = models.BooleanField(default=False, blank=True, null=True)
 
     cash='Cash'
     cheque='Cheque'
@@ -77,7 +76,6 @@ class payment(models.Model):
 
 class invoice(models.Model):
     Resident = models.ForeignKey(resident, on_delete=models.CASCADE, blank=True, null=True)
-    Payment =  models.ManyToManyField(payment, blank=True) # null has no effect on many to many relationships
     
     filename = models.FileField(upload_to='Invoices/', blank=True, null=True)
     invoice_number = models.CharField(max_length=5, validators=[MinLengthValidator(5)],blank=True, null=True) # Must have length 5
@@ -86,7 +84,6 @@ class invoice(models.Model):
     year = models.IntegerField(blank=True, null=True) # Year issued, used together with batch_number
     total = models.IntegerField(blank=True, null=True)
     obsolete = models.BooleanField(default=False, blank=True, null=True)
-    matched = models.BooleanField(default=False, blank=True, null=True)
 
     @property
     def name(self):
