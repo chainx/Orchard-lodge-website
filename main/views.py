@@ -241,32 +241,17 @@ def specific_resident(request, res_url):
         
         data = {
             'res':res,
-            'unmatched_invoices':res.invoice_set.filter(obsolete=False, matched=False).order_by('date').filter(date__gte=cutoff_date),#.reverse(),
-            'unmatched_payments':res.payment_set.filter(matched=False).order_by('date').filter(date__gte=cutoff_date),#.reverse(),
+            'invoices':res.invoice_set.filter(obsolete=False).order_by('date').filter(date__gte=cutoff_date),
+            'payments':res.payment_set.order_by('date').filter(date__gte=cutoff_date),
             'sefton_payments': res.sefton_payment_set.order_by('date').filter(date__gte=cutoff_date),#.reverse(),
             'resident_form': ResidentForm(instance=res),
         }
-        data['accepted_matches'] = []
-        for index, payment_ in enumerate(res.payment_set.filter(matched=True)):
-            data['accepted_matches'].append((index, payment_, payment_.invoice_set.all(), payment_.invoice_set.latest('date').date))
-        data['accepted_matches'] = sorted(data['accepted_matches'], key=lambda x: x[-1])
 
         if request.method=='POST' and request.POST['form_type']=='Updating resident info':
             form = ResidentForm(request.POST, instance=res)
             if form.is_valid():
                 data['resident_form'] = form
                 form.save()
-
-        if request.method=='POST' and request.POST['form_type']=='Payment matching':
-            payments_matched = {int(key.split(' - ')[1]): value.split('-') for key, value in request.POST.items() if 'Payment ID' in key and value != ''}
-            for payment_id, invoice_ids in payments_matched.items():
-                payment_ = payment.objects.get(id=payment_id)
-                for invoice_ in invoice.objects.filter(id__in=invoice_ids):
-                    invoice_.matched = True
-                    payment_.matched = True
-                    invoice_.Payment.add(payment_)
-                    invoice_.save()
-                    payment_.save()
 
         return render(request, "main/specific_resident.html", data)
     else:
