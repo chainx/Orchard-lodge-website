@@ -24,7 +24,7 @@ def update_payments():
     from_date = datetime.strptime(excel_payments.iloc[0].Date, '%d/%m/%Y').date()
     scrape_santander_bank_statements(from_date, datetime.now().date())                          
     downloaded_payments = format_and_combine_downloaded_files(santander_file_path, delete_used_files=True)
-    excel_payments = combine_with_local_excel_file(excel_payments, downloaded_payments)
+    excel_payments = combine_with_local_excel_file(excel_payments, downloaded_payments, from_date)
     check_santander_file_consistent(excel_payments)
     excel_payments.to_excel(santander_file, index=False)
 
@@ -127,9 +127,9 @@ def check_santander_file_consistent(excel_payments):
 
 #============================================================= COMBING STATEMENTS ===============================================================================
 
-def combine_with_local_excel_file(excel_payments, downloaded_payments):
-    combined_payments = pd.concat([downloaded_payments, excel_payments], ignore_index=True)
-    return combined_payments.drop_duplicates(ignore_index=True)
+def combine_with_local_excel_file(excel_payments, downloaded_payments, from_date):
+    old_payments = excel_payments[pd.to_datetime(excel_payments.Date, format='%d/%m/%Y').dt.date.lt(from_date)]
+    return pd.concat([downloaded_payments, old_payments], ignore_index=True)
 
 def format_and_combine_downloaded_files(file_path, check_table_formats=True, delete_used_files=True):
     files = [os.path.join(file_path, file) for file in os.listdir(file_path) if file.endswith('.xls') and '.~lock.' not in file]
