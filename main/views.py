@@ -1,16 +1,14 @@
 import os
 import pandas as pd
-from datetime import datetime, date
+from datetime import datetime
 import mimetypes
 import tempfile
 from zipfile import ZipFile
 from zoneinfo import ZoneInfo
 
-from urllib.request import HTTPRedirectHandler
 from django.shortcuts import render, redirect
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse
 from django.contrib import messages
-from django.core.files.storage import FileSystemStorage
 from django.db import transaction
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
@@ -25,8 +23,6 @@ from backend.payments import match_payments_to_resident, normalize_payment_filte
 from backend.statement_of_account import can_convert_to_pdf, merge_pdfs, write_cover_letter, write_statement_of_account
 
 from django.conf import settings
-
-SEFTON_TIMEZONE = ZoneInfo('Europe/London')
 
 # Create your views here.
 def home(request):
@@ -157,9 +153,9 @@ def format_london_datetime(value, empty_value='Never downloaded'):
         return empty_value
 
     if timezone.is_aware(value):
-        value = value.astimezone(SEFTON_TIMEZONE)
+        value = value.astimezone(ZoneInfo('Europe/London'))
     else:
-        value = timezone.make_aware(value, SEFTON_TIMEZONE)
+        value = timezone.make_aware(value, ZoneInfo('Europe/London'))
     return value.strftime('%d/%m/%Y %H:%M')
 
 def str_total(total):

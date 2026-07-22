@@ -76,9 +76,8 @@ def scrape_santander_bank_statements(from_date, to_date, headless=False):
 
         date_partition = partition_dates(from_date, to_date)
         for date_range in date_partition:
-            for i in range(2):
-                to_or_from = 'from' if i==0 else 'to'
-                input_date_form(driver, to_or_from, date_range[i])
+            input_date_form(driver, 'from', date_range[0])
+            input_date_form(driver, 'to', date_range[1])
             download_bank_statement(driver, date_range[0], date_range[1])
     finally:
         driver.quit()

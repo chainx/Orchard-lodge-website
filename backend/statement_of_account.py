@@ -98,6 +98,7 @@ def write_cover_letter(folder, count, res, convert_to_pdf=True):
         "RES_NAME_2": f'{res.title} {res.last}',
         "[AMOUNT]": str_total(res.total_owed()),
         "[DATE]": datetime.now().date().strftime('%-d %B %Y'),
+        "[MONTH]": datetime.now().date().strftime('%B').upper(),
     }
 
     for paragraph in document.paragraphs:
