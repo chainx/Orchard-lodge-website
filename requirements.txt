@@ -6,6 +6,7 @@ pypdf
 openpyxl
 XlsxWriter
 django-crispy-forms
+crispy-bootstrap4
 bootstrap4
 whitenoise
 django-sslserver

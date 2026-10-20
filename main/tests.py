@@ -1,9 +1,56 @@
 import datetime
 
-from django.test import TestCase
+import pandas as pd
 
-from backend.payments import match_payments_to_resident, normalize_payment_filters
+from django.test import SimpleTestCase, TestCase
+
+from backend.payments import (
+    combine_with_local_excel_file,
+    match_payments_to_resident,
+    normalize_payment_filters,
+)
 from main.models import payment, resident
+
+
+class SantanderFileMergeTests(SimpleTestCase):
+    def test_replaces_local_rows_from_download_start_date(self):
+        local_payments = pd.DataFrame([
+            {
+                'Date': '08/07/2026',
+                'Description': 'STALE TRANSACTION',
+                'Money in': '£ 10.00',
+                'Money Out': None,
+                'Balance': '£ 110.00',
+            },
+            {
+                'Date': '07/07/2026',
+                'Description': 'OLDER TRANSACTION',
+                'Money in': '£ 100.00',
+                'Money Out': None,
+                'Balance': '£ 100.00',
+            },
+        ])
+        downloaded_payments = pd.DataFrame([
+            {
+                'Date': '08/07/2026',
+                'Description': 'REPLACEMENT TRANSACTION',
+                'Money in': '£ 20.00',
+                'Money Out': None,
+                'Balance': '£ 120.00',
+            },
+        ])
+
+        combined_payments = combine_with_local_excel_file(
+            local_payments,
+            downloaded_payments,
+            datetime.date(2026, 7, 8),
+        )
+
+        expected_payments = pd.concat(
+            [downloaded_payments, local_payments.iloc[[1]]],
+            ignore_index=True,
+        )
+        pd.testing.assert_frame_equal(combined_payments, expected_payments)
 
 
 class PaymentFilterTests(TestCase):
@@ -12,7 +59,7 @@ class PaymentFilterTests(TestCase):
 
     def test_normalize_payment_filters_splits_semicolon_separated_filters(self):
         self.assertEqual(
-            normalize_payment_filters(' Alice Smith ; BOB JONES;  '),
+            normalize_payment_filters(' Alice Smith ;   BOB JONES;  '),
             ['Alice Smith', 'BOB JONES'],
         )
 

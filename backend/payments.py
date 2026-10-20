@@ -22,11 +22,14 @@ def update_payments():
     excel_payments = pd.read_excel(santander_file)
 
     from_date = datetime.strptime(excel_payments.iloc[0].Date, '%d/%m/%Y').date()
-    scrape_santander_bank_statements(from_date, datetime.now().date())                          
-    downloaded_payments = format_and_combine_downloaded_files(santander_file_path, delete_used_files=True)
-    excel_payments = combine_with_local_excel_file(excel_payments, downloaded_payments, from_date)
-    check_santander_file_consistent(excel_payments)
-    excel_payments.to_excel(santander_file, index=False)
+    scrape_santander_bank_statements(from_date, datetime.now().date())
+    try:
+        downloaded_payments = format_and_combine_downloaded_files(santander_file_path, delete_used_files=True)
+        excel_payments = combine_with_local_excel_file(excel_payments, downloaded_payments, from_date)
+        check_santander_file_consistent(excel_payments)
+        excel_payments.to_excel(santander_file, index=False)
+    except:
+        print("File did not download or couldn't be combined")
 
     new_payments = get_new_payments(excel_payments)
     add_payments_to_db(new_payments)
@@ -34,6 +37,7 @@ def update_payments():
     variables = global_variables.load()
     variables.last_bank_statement_downloaded_at = timezone.now()
     variables.save()
+    print('Payments updated!')
     return new_payments
 
 # ============================================================   UPDATE DB   ================================================================================
