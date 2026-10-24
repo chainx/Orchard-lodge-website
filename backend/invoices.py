@@ -1,8 +1,12 @@
 import os
 import sys
+import csv
+from collections import Counter
+from io import StringIO
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from datetime import datetime
+from math import isfinite
 from docx import Document
 from random import randint
 import pandas as pd
@@ -22,20 +26,18 @@ def main():
     # Test for invoice writing
     # debt = pd.DataFrame({'Amount': 100, 'PaymentItemDates' : '01/01/2025 - 28/01/2025', 'AdjustmentLabel' : ''}, index=[0])
     # write_inovice(settings.MEDIA_INVOICES, datetime.now().strftime("%d %B %Y"), resident.objects.get(id=100), debt, 10000, '015670', batch_number=10)
+    # rewrite_invoice('inv_no', 'title first last', folder, invoices)
+    # compile_summary_table(invoices, sefton_payments, folder)
 
     get_remittance_advice()
 
     latest_remittance = latest_filename(settings.MEDIA_REMITTANCE)
     invoices, sefton_payments, batch_number, folder = get_invoice_data_from_sefton_csv(latest_remittance)
 
-    # rewrite_invoice('inv_no', 'title first last', folder, invoices)
-    
-    compile_summary_table(invoices, sefton_payments, folder)
     write_invoices_and_update_db(invoices, sefton_payments, batch_number, folder, update_db=True)
-
     draft_emails()
 
-#==================================================================================================================================================================
+#=====================================================   READ AND WRITE DOCX FILES   ====================================================================================
 
 def write_inovice(folder, date, Resident, sub_items, total, invoice_number, batch_number=None):
     document = Document(settings.MEDIA_INVOICES_TEMPLATES / 'INVOICE TEMPLATE.docx')
@@ -84,9 +86,11 @@ def rewrite_invoice(invoice_number, resident_name, folder, invoices):
     invoice['invoice_number'] = invoice_number
     write_inovice(folder, **invoice)
 
-#==================================================================================================================================================================
+#===============================================   EXTRACTING DATA FROM CSV   ===================================================================================
 
 def get_invoice_data_from_sefton_csv(filename, save_new_residents=True): # Obtains data pertinent to writing invoices and updating the database
+    df, payment_period = read_and_format_sefton_csv(filename)
+
     date, year = datetime.now().strftime("%d %B %Y"), datetime.now().strftime("%Y")
     batch_number = file_num(os.path.basename(filename))
     os.makedirs(os.path.join(settings.MEDIA_INVOICES, year), exist_ok=True)
@@ -94,13 +98,18 @@ def get_invoice_data_from_sefton_csv(filename, save_new_residents=True): # Obtai
     invoice_number = max(invoice.objects.filter(obsolete=False).values_list('invoice_number', flat=True))
     invoice_number = "%05d" % (int(invoice_number)+1)
 
-    df, payment_period = read_and_format_sefton_csv(filename)
-
     invoices, sefton_payments = [], []
+    preview_resident_ids = set()
     for index, df_row in df[['FormattedName', 'Sefton ID']].drop_duplicates().iterrows():
         
         res_name, sefton_id = df_row['FormattedName'], df_row['Sefton ID']
-        res = get_or_add_resident(res_name, sefton_id, save=save_new_residents)
+        res = get_or_add_resident(
+            res_name, sefton_id, save=save_new_residents,
+            excluded_resident_ids=preview_resident_ids,
+        )
+        if not save_new_residents and res.pk is not None:
+            # Reserve this match in memory because preview does not save its ID.
+            preview_resident_ids.add(res.pk)
 
         invoice_total = 0 # Subtracted from Sefton cost to find total paid by Sefton
         if inv := compile_personal_contributions_and_sefton_payments(res, df, batch_number, date, invoice_number, cost_or_income=1):
@@ -116,20 +125,21 @@ def get_invoice_data_from_sefton_csv(filename, save_new_residents=True): # Obtai
 def compile_personal_contributions_and_sefton_payments(res, df, batch_number, date, invoice_number=None, cost_or_income=1, invoice_total=0):
     # cost_or_income = 1 for personal contributions and 0 for Sefton payments
     filt = (df['Sefton ID']==res.sefton_id) & (df['IsIncome']==cost_or_income)
-    if not df.loc[filt].empty:
-        if abs(df.loc[filt]['Amount'].sum())<1:
-            return # Don't write invoices for less that £1
-        row = {
-            'Resident': res,
-            'date' : date,
-            'sub_items' : df.loc[filt][['Amount', 'PaymentItemDates', 'AdjustmentLabel']],
-            'total' : round(df.loc[filt]['Amount'].sum()*100) - invoice_total, # Amounts are stored in pennies in the database
-            'batch_number': batch_number
-        }
-        if invoice_number:
-            row['invoice_number'] = invoice_number
+    if df.loc[filt].empty:
+        return
+    if abs(df.loc[filt]['Amount'].sum())<1:
+        return # Don't write invoices for less than £1
+    row = {
+        'Resident': res,
+        'date' : date,
+        'sub_items' : df.loc[filt][['Amount', 'PaymentItemDates', 'AdjustmentLabel']],
+        'total' : round(df.loc[filt]['Amount'].sum()*100) - invoice_total, # Amounts are stored in pennies in the database
+        'batch_number': batch_number
+    }
+    if invoice_number:
+        row['invoice_number'] = invoice_number
 
-        return row
+    return row
 
 def compile_invoices_for_private_residents(payment_period, batch_number, date, invoice_number):
     private_invoices = []
@@ -191,38 +201,159 @@ def compile_summary_table(invoices, sefton_payments, folder, print_table=False):
     if print_table:
         print(df)
 
-#=============================================   UTILS   =======================================================================================================
+#===================================   READ AND ERROR CORRECT CSV   =========================================================================================
 
 def read_and_format_sefton_csv(filename):
+    # Preserve text such as "NA" and validate numbers before converting them.
+    contents = filename.read() if hasattr(filename, 'read') else pathlib.Path(filename).read_bytes()
+    if isinstance(contents, bytes):
+        try:
+            contents = contents.decode('utf-8-sig')
+        except UnicodeDecodeError:
+            contents = contents.decode('ISO-8859-1')
+    contents = contents.removeprefix('\ufeff')
     try:
-        df = pd.read_csv(filename)
-    except:
-        df = pd.read_csv(filename, encoding='ISO-8859-1')
-    
-    df = df.fillna('')
+        # pandas renames duplicate headers (e.g. Amount -> Amount.1), so inspect
+        # the original header before loading the table. Skip leading blank lines.
+        header = next(
+            (row for row in csv.reader(StringIO(contents), strict=True)
+             if row and (len(row) > 1 or row[0].strip())),
+            [],
+        )
+        duplicates = [name for name, count in Counter(header).items() if count > 1]
+        if duplicates:
+            raise ValueError(f"Invalid Sefton CSV: duplicate column names: {', '.join(duplicates)}")
+        df = pd.read_csv(StringIO(contents), dtype=str, keep_default_na=False)
+    except (csv.Error, pd.errors.EmptyDataError, pd.errors.ParserError) as error:
+        raise ValueError(f'Invalid Sefton CSV: {error}') from error
 
-    unusual_rows = df[df['ServiceTotalLabel']!='Total for Orchard Lodge Care Home']
-    if not unusual_rows.empty:
-        df = df[df['ServiceTotalLabel']=='Total for Orchard Lodge Care Home'] # Remove unusual rows
+    required_columns = (
+        'ServiceTotalLabel', 'ReportContext', 'Person', 'ClientName',
+        'Amount', 'IsIncome', 'PaymentItemDates', 'AdjustmentLabel',
+    )
+    missing = [column for column in required_columns if column not in df.columns]
+    if missing:
+        raise ValueError(f"Invalid Sefton CSV: missing required columns: {', '.join(missing)}")
+    if df.empty:
+        raise ValueError('Invalid Sefton CSV: no data rows')
+    if not isinstance(df.index, pd.RangeIndex):
+        raise ValueError('Invalid Sefton CSV: rows contain more fields than the header')
 
-    payment_period = df.iloc[0]['ReportContext'].split('Payment Period from ')[1]
+    def reject_rows(column, invalid, expected):
+        if invalid.any():
+            # Retain source indices when filtering to identify CSV row numbers.
+            rows = ', '.join(str(index + 2) for index in df.index[invalid][:10])
+            raise ValueError(
+                f'Invalid Sefton CSV: {column} must be {expected} (CSV rows {rows})'
+            )
 
-    format_function = lambda row: row['Person'].split()[0] + ',' + ', '.join(row['ClientName'].split(' (')[0].split(',')[::-1])
-    df['FormattedName'] = df.apply(format_function, axis=1)
-    df['Sefton ID'] = df['ClientName'].apply(lambda x: x.split(' (')[1][:-1])
+    reject_rows('ServiceTotalLabel', df['ServiceTotalLabel'].str.strip().eq(''), 'non-empty text')
+    df = df.loc[df['ServiceTotalLabel'].eq('Total for Orchard Lodge Care Home')].copy()
+    if df.empty:
+        raise ValueError('Invalid Sefton CSV: no rows for Orchard Lodge Care Home')
+
+    # Compare every source column before numeric conversion. Matching invoice
+    # fields alone can represent distinct payments with different source metadata.
+    duplicates = df.duplicated(keep=False)
+    if duplicates.any():
+        rows = ', '.join(str(index + 2) for index in df.index[duplicates][:10])
+        raise ValueError(
+            f'Invalid Sefton CSV: duplicate rows (CSV rows {rows}); '
+            'review the source remittance before importing'
+        )
+
+    for column in ('ReportContext', 'Person', 'ClientName', 'PaymentItemDates'):
+        reject_rows(column, df[column].str.strip().eq(''), 'non-empty text')
+
+    for column in ('Amount', 'IsIncome'):
+        numbers = pd.to_numeric(df[column], errors='coerce')
+        if column == 'Amount':
+            reject_rows(column, ~numbers.map(isfinite), 'a finite number')
+        else:
+            reject_rows(column, ~numbers.isin([0, 1]), '0 or 1')
+        df[column] = numbers
+
+    # These structures are used below to extract the resident and payment dates.
+    clients = df['ClientName'].str.extract(
+        r'\A(?P<last>[^,()\s][^,()]*), (?P<first>[^,()\s][^,()]*) '
+        r'\((?P<sefton_id>[^()\s]+)\)\Z',
+    )
+    reject_rows(
+        'ClientName',
+        clients.isna().any(axis=1),
+        'in the format "Surname, First name (Sefton ID)"',
+    )
+    clients['first'] = clients['first'].str.strip()
+    clients['last'] = clients['last'].str.strip()
+
+    item_periods = df['PaymentItemDates'].str.extract(
+        r'\A(\d{2}/\d{2}/(?:\d{4}|\d{2})) (?:to|-) '
+        r'(\d{2}/\d{2}/(?:\d{4}|\d{2}))\Z',
+    )
+    item_dates = [
+        pd.to_datetime(item_periods[column], format='%d/%m/%Y', errors='coerce').fillna(
+            pd.to_datetime(item_periods[column], format='%d/%m/%y', errors='coerce')
+        )
+        for column in (0, 1)
+    ]
+    reject_rows(
+        'PaymentItemDates',
+        item_dates[0].isna() | item_dates[1].isna() | (item_dates[0] > item_dates[1]),
+        'a valid date range with the start on or before the end '
+        '(DD/MM/YY or DD/MM/YYYY, separated by " to " or " - ")',
+    )
+    periods = df['ReportContext'].str.extract(
+        r'Payment Period from (\d{2}/\d{2}/\d{4}) to (\d{2}/\d{2}/\d{4})$',
+        expand=True,
+    )
+    start = pd.to_datetime(periods[0], format='%d/%m/%Y', errors='coerce')
+    end = pd.to_datetime(periods[1], format='%d/%m/%Y', errors='coerce')
+    reject_rows(
+        'ReportContext', start.isna() | end.isna() | (start > end),
+        'a valid "Payment Period from DD/MM/YYYY to DD/MM/YYYY" date range',
+    )
+    payment_periods = periods[0] + ' to ' + periods[1]
+    if payment_periods.nunique() != 1:
+        raise ValueError('Invalid Sefton CSV: ReportContext contains inconsistent payment periods')
+    payment_period = payment_periods.iloc[0]
+
+    # Some exports omit the title: Person then begins with the given name.
+    # Extract the actual name and ID from the validated ClientName captures.
+    person_first_word = df['Person'].str.split().str[0]
+    given_first_word = clients['first'].str.split().str[0]
+    titles = person_first_word.where(
+        person_first_word.str.casefold() != given_first_word.str.casefold(), ''
+    )
+    df['FormattedName'] = titles + ', ' + clients['first'] + ', ' + clients['last']
+    df['Sefton ID'] = clients['sefton_id']
+
+    # Each name/ID pair is processed separately by the invoice compiler. Multiple
+    # names for the same ID would cause its amounts to be invoiced more than once.
+    names_per_id = df.groupby('Sefton ID')['FormattedName'].transform('nunique')
+    reject_rows('Sefton ID', names_per_id.gt(1), 'associated with a single resident name')
     
     return df, payment_period
 
-def get_or_add_resident(res_name, sefton_id=None, current=True, private=False, save=True):
+#=============================================   UTILS   =======================================================================================================
+
+def get_or_add_resident(res_name, sefton_id=None, current=True, private=False, save=True, excluded_resident_ids=()):
     new_res_created = False
-    try:
-        res = resident.objects.get(sefton_id=sefton_id)
-    except:
+    res = None
+    if sefton_id:
+        try:
+            res = resident.objects.get(sefton_id=sefton_id)
+        except resident.DoesNotExist:
+            pass
+    if res is None:
         title, first, last = res_name.split(', ')
-        if res := get_residents_with_similar_name(first, last):
-            if not res.sefton_id:
+        if res := get_residents_with_similar_name(
+            first, last, unassigned_only=bool(sefton_id),
+            excluded_resident_ids=excluded_resident_ids,
+        ):
+            if sefton_id and not res.sefton_id:
                 res.sefton_id = sefton_id
-                res.save()
+                if save:
+                    res.save(update_fields=['sefton_id'])
         else:
             new_res_created = True
             res = resident(title=title, first=first, last=last, sefton_id=sefton_id)
@@ -240,10 +371,16 @@ def get_or_add_resident(res_name, sefton_id=None, current=True, private=False, s
         print(f'The former resident {res.name} has been added to the Sefton remittance advice\n')
     return res
 
-def get_residents_with_similar_name(first, last, verbose=True):
+def get_residents_with_similar_name(first, last, verbose=True, unassigned_only=False, excluded_resident_ids=()):
     # Create a regex pattern that matches with any number of spaces or apostrophes between characters
     regex_pattern = r'(?i)^' + r'[\s\']*'.join(last.replace(' ','').replace("'", '')) + r'[\s\']*$'
     close_matches = resident.objects.filter(first__istartswith=first.split()[0], last__regex=regex_pattern)
+    if unassigned_only:
+        # A matching name cannot override a different council identity. Filter
+        # before checking ambiguity so already assigned residents do not count.
+        close_matches = close_matches.filter(sefton_id__isnull=True) | close_matches.filter(sefton_id='')
+    if excluded_resident_ids:
+        close_matches = close_matches.exclude(pk__in=excluded_resident_ids)
     if len(close_matches)==1:
         if verbose:
             print(f'The resident {first} {last} has been identified with the following close match:\n{close_matches[0]}\n')
